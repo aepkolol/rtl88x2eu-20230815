@@ -11064,7 +11064,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 
 #if defined(CONFIG_GTK_OL) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0))
     .set_rekey_data = cfg80211_rtw_set_rekey_data,
-#endif /*CONFIG_GTK_OL*/
+#endif /* CONFIG_GTK_OL */
 
     .get_station = cfg80211_rtw_get_station,
     .scan = cfg80211_rtw_scan,
@@ -11091,6 +11091,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 
     .add_virtual_intf = cfg80211_rtw_add_virtual_intf,
     .del_virtual_intf = cfg80211_rtw_del_virtual_intf,
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
     .remain_on_channel = cfg80211_rtw_remain_on_channel,
 #endif
