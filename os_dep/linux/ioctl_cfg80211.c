@@ -11078,6 +11078,8 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .disconnect = cfg80211_rtw_disconnect,
     .join_ibss = cfg80211_rtw_join_ibss,
     .leave_ibss = cfg80211_rtw_leave_ibss,
+	.remain_on_channel = cfg80211_rtw_remain_on_channel,
+	.cancel_remain_on_channel = cfg80211_rtw_cancel_remain_on_channel,
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
     .set_tx_power = cfg80211_rtw_set_txpower,
@@ -11142,9 +11144,6 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 	.dump_mpp = cfg80211_rtw_dump_mpp,
 	#endif
 #endif
-
-	.remain_on_channel = cfg80211_rtw_remain_on_channel,
-	.cancel_remain_on_channel = cfg80211_rtw_cancel_remain_on_channel,
 
 #if defined(CONFIG_P2P) && defined(RTW_DEDICATED_P2P_DEVICE)
 	.start_p2p_device = cfg80211_rtw_start_p2p_device,
