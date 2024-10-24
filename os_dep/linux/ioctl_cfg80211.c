@@ -11078,8 +11078,6 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .disconnect = cfg80211_rtw_disconnect,
     .join_ibss = cfg80211_rtw_join_ibss,
     .leave_ibss = cfg80211_rtw_leave_ibss,
-	.remain_on_channel = cfg80211_rtw_remain_on_channel,
-	.cancel_remain_on_channel = cfg80211_rtw_cancel_remain_on_channel,
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
     .set_tx_power = cfg80211_rtw_set_txpower,
@@ -11094,101 +11092,107 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .add_virtual_intf = cfg80211_rtw_add_virtual_intf,
     .del_virtual_intf = cfg80211_rtw_del_virtual_intf,
 
-};
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
+    .remain_on_channel = cfg80211_rtw_remain_on_channel,
+    .cancel_remain_on_channel = cfg80211_rtw_cancel_remain_on_channel,
+#endif
 
 #ifdef CONFIG_AP_MODE
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)) && !defined(COMPAT_KERNEL_RELEASE)
-	.add_beacon = cfg80211_rtw_add_beacon,
-	.set_beacon = cfg80211_rtw_set_beacon,
-	.del_beacon = cfg80211_rtw_del_beacon,
+    .add_beacon = cfg80211_rtw_add_beacon,
+    .set_beacon = cfg80211_rtw_set_beacon,
+    .del_beacon = cfg80211_rtw_del_beacon,
 #else
-	.start_ap = cfg80211_rtw_start_ap,
-	.change_beacon = cfg80211_rtw_change_beacon,
-	.stop_ap = cfg80211_rtw_stop_ap,
+    .start_ap = cfg80211_rtw_start_ap,
+    .change_beacon = cfg80211_rtw_change_beacon,
+    .stop_ap = cfg80211_rtw_stop_ap,
+#endif
 #endif
 
 #if CONFIG_RTW_MACADDR_ACL && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))
-	.set_mac_acl = cfg80211_rtw_set_mac_acl,
+    .set_mac_acl = cfg80211_rtw_set_mac_acl,
 #endif
 
-	.add_station = cfg80211_rtw_add_station,
-	.del_station = cfg80211_rtw_del_station,
-	.change_station = cfg80211_rtw_change_station,
-	.dump_station = cfg80211_rtw_dump_station,
+    .add_station = cfg80211_rtw_add_station,
+    .del_station = cfg80211_rtw_del_station,
+    .change_station = cfg80211_rtw_change_station,
+    .dump_station = cfg80211_rtw_dump_station,
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
-	.change_bss = cfg80211_rtw_change_bss,
+    .change_bss = cfg80211_rtw_change_bss,
 #endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
-	.set_txq_params = cfg80211_rtw_set_txq_params,
+    .set_txq_params = cfg80211_rtw_set_txq_params,
 #endif
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0))
-	.set_channel = cfg80211_rtw_set_channel,
+    .set_channel = cfg80211_rtw_set_channel,
 #endif
-	/* .auth = cfg80211_rtw_auth, */
-	/* .assoc = cfg80211_rtw_assoc,	 */
-#endif /* CONFIG_AP_MODE */
 
 #if defined(CONFIG_RTW_MESH) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38))
-	.get_mesh_config = cfg80211_rtw_get_mesh_config,
-	.update_mesh_config = cfg80211_rtw_update_mesh_config,
-	.join_mesh = cfg80211_rtw_join_mesh,
-	.leave_mesh = cfg80211_rtw_leave_mesh,
-	.add_mpath = cfg80211_rtw_add_mpath,
-	.del_mpath = cfg80211_rtw_del_mpath,
-	.change_mpath = cfg80211_rtw_change_mpath,
-	.get_mpath = cfg80211_rtw_get_mpath,
-	.dump_mpath = cfg80211_rtw_dump_mpath,
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
-	.get_mpp = cfg80211_rtw_get_mpp,
-	.dump_mpp = cfg80211_rtw_dump_mpp,
-	#endif
+    .get_mesh_config = cfg80211_rtw_get_mesh_config,
+    .update_mesh_config = cfg80211_rtw_update_mesh_config,
+    .join_mesh = cfg80211_rtw_join_mesh,
+    .leave_mesh = cfg80211_rtw_leave_mesh,
+    .add_mpath = cfg80211_rtw_add_mpath,
+    .del_mpath = cfg80211_rtw_del_mpath,
+    .change_mpath = cfg80211_rtw_change_mpath,
+    .get_mpath = cfg80211_rtw_get_mpath,
+    .dump_mpath = cfg80211_rtw_dump_mpath,
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
+        .get_mpp = cfg80211_rtw_get_mpp,
+        .dump_mpp = cfg80211_rtw_dump_mpp,
+    #endif
 #endif
 
 #if defined(CONFIG_P2P) && defined(RTW_DEDICATED_P2P_DEVICE)
-	.start_p2p_device = cfg80211_rtw_start_p2p_device,
-	.stop_p2p_device = cfg80211_rtw_stop_p2p_device,
+    .start_p2p_device = cfg80211_rtw_start_p2p_device,
+    .stop_p2p_device = cfg80211_rtw_stop_p2p_device,
 #endif
 
 #ifdef CONFIG_RTW_80211R
-	.update_ft_ies = cfg80211_rtw_update_ft_ies,
+    .update_ft_ies = cfg80211_rtw_update_ft_ies,
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) || defined(COMPAT_KERNEL_RELEASE)
-	.mgmt_tx = cfg80211_rtw_mgmt_tx,
+    .mgmt_tx = cfg80211_rtw_mgmt_tx,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
-	.mgmt_frame_register = cfg80211_rtw_mgmt_frame_register,
+    .mgmt_frame_register = cfg80211_rtw_mgmt_frame_register,
 #else
-	.update_mgmt_frame_registrations = cfg80211_rtw_update_mgmt_frame_register,
+    .update_mgmt_frame_registrations = cfg80211_rtw_update_mgmt_frame_register,
 #endif
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34) && LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
-	.action = cfg80211_rtw_mgmt_tx,
+    .action = cfg80211_rtw_mgmt_tx,
 #endif
 
 #if defined(CONFIG_TDLS) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0))
-	.tdls_mgmt = cfg80211_rtw_tdls_mgmt,
-	.tdls_oper = cfg80211_rtw_tdls_oper,
+    .tdls_mgmt = cfg80211_rtw_tdls_mgmt,
+    .tdls_oper = cfg80211_rtw_tdls_oper,
 #endif /* CONFIG_TDLS */
 
 #if defined(CONFIG_PNO_SUPPORT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
-	.sched_scan_start = cfg80211_rtw_sched_scan_start,
-	.sched_scan_stop = cfg80211_rtw_sched_scan_stop,
-	.suspend = cfg80211_rtw_suspend,
-	.resume = cfg80211_rtw_resume,
+    .sched_scan_start = cfg80211_rtw_sched_scan_start,
+    .sched_scan_stop = cfg80211_rtw_sched_scan_stop,
+    .suspend = cfg80211_rtw_suspend,
+    .resume = cfg80211_rtw_resume,
 #endif /* CONFIG_PNO_SUPPORT */
+
 #ifdef CONFIG_RFKILL_POLL
-	.rfkill_poll = cfg80211_rtw_rfkill_poll,
+    .rfkill_poll = cfg80211_rtw_rfkill_poll,
 #endif
+
 #if defined(CONFIG_RTW_HOSTAPD_ACS) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33))
-	.dump_survey = rtw_hostapd_acs_dump_survey,
+    .dump_survey = rtw_hostapd_acs_dump_survey,
 #endif
-#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE) \
-    || defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH)
-	.external_auth = cfg80211_rtw_external_auth,
+
+#if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE) || defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH)
+    .external_auth = cfg80211_rtw_external_auth,
 #endif
+
 #ifdef CONFIG_AP_MODE
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0))
-	.channel_switch = cfg80211_rtw_channel_switch,
+    .channel_switch = cfg80211_rtw_channel_switch,
 #endif
 #endif /* #ifdef CONFIG_AP_MODE */
 };
