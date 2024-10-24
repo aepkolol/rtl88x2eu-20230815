@@ -17,8 +17,6 @@
 #include <drv_types.h>
 #include <hal_data.h>
 
-#ifdef CONFIG_IOCTL_CFG80211
-
 #ifndef DBG_RTW_CFG80211_STA_PARAM
 #define DBG_RTW_CFG80211_STA_PARAM 0
 #endif
