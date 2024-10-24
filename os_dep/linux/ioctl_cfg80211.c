@@ -11046,6 +11046,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .del_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, const u8 *)) cfg80211_rtw_del_key,
     .set_default_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, bool)) cfg80211_rtw_set_default_key,
     .set_default_mgmt_key = (int (*)(struct wiphy *, struct net_device *, u8)) cfg80211_rtw_set_default_mgmt_key,
+	.set_monitor_channel = cfg80211_rtw_set_monitor_channel,
 #else
     // Generic function pointer assignment for other kernel versions
     .add_key = cfg80211_rtw_add_key,
