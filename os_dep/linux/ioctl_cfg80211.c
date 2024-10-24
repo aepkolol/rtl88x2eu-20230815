@@ -2465,7 +2465,7 @@ static int cfg80211_rtw_set_default_key(struct wiphy *wiphy, struct net_device *
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
 int cfg80211_rtw_set_default_mgmt_key(struct wiphy *wiphy, struct net_device *ndev
-#if (defined(CONFIG_MLD_KERNEL_PATCH) || LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+#if (defined(CONFIG_MLD_KERNEL_PATCH) || (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0)) || LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 148))
 	, int link_id
 #endif
 	, u8 key_index)
@@ -11045,13 +11045,14 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .get_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, const u8 *, void *, void (*)(void *, struct key_params *))) cfg80211_rtw_get_key,
     .del_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, const u8 *)) cfg80211_rtw_del_key,
     .set_default_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, bool)) cfg80211_rtw_set_default_key,
-    .set_default_mgmt_key = cfg80211_rtw_set_default_mgmt_key,
+    .set_default_mgmt_key = (int (*)(struct wiphy *, struct net_device *, u8)) cfg80211_rtw_set_default_mgmt_key,
 #else
     // Generic function pointer assignment for other kernel versions
     .add_key = cfg80211_rtw_add_key,
     .get_key = cfg80211_rtw_get_key,
     .del_key = cfg80211_rtw_del_key,
     .set_default_key = cfg80211_rtw_set_default_key,
+	.set_monitor_channel = cfg80211_rtw_set_monitor_channel,
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
@@ -11136,10 +11137,6 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 	.get_mpp = cfg80211_rtw_get_mpp,
 	.dump_mpp = cfg80211_rtw_dump_mpp,
 	#endif
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
-	.set_monitor_channel = cfg80211_rtw_set_monitor_channel, 
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
