@@ -11041,13 +11041,13 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 
 #if (LINUX_VERSION_CODE == KERNEL_VERSION(5, 15, 148))
     // Specific kernel version 5.15.148 - cast function pointers to match expected signature
-    .add_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, const u8 *, struct key_params *)) cfg80211_rtw_add_key,
-    .get_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, const u8 *, void *, void (*)(void *, struct key_params *))) cfg80211_rtw_get_key,
-    .del_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, const u8 *)) cfg80211_rtw_del_key,
-    .set_default_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, bool)) cfg80211_rtw_set_default_key,
-    .set_default_mgmt_key = (int (*)(struct wiphy *, struct net_device *, u8)) cfg80211_rtw_set_default_mgmt_key,
+    .add_key = cfg80211_rtw_add_key,
+    .get_key = cfg80211_rtw_get_key,
+    .del_key = cfg80211_rtw_del_key,
+    .set_default_key = cfg80211_rtw_set_default_key,
+    .set_default_mgmt_key = cfg80211_rtw_set_default_mgmt_key,
     .set_monitor_channel = cfg80211_rtw_set_monitor_channel,
-    .get_channel = (int (*)(struct wiphy *, struct wireless_dev *, struct cfg80211_chan_def *)) cfg80211_rtw_get_channel,
+    .get_channel = cfg80211_rtw_get_channel,
 #else
     // Generic function pointer assignment for other kernel versions
     .add_key = cfg80211_rtw_add_key,
@@ -11055,7 +11055,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .del_key = cfg80211_rtw_del_key,
     .set_default_key = cfg80211_rtw_set_default_key,
     .set_monitor_channel = cfg80211_rtw_set_monitor_channel,
-    .get_channel = (int (*)(struct wiphy *, struct wireless_dev *, struct cfg80211_chan_def *)) cfg80211_rtw_get_channel,
+    .get_channel = cfg80211_rtw_get_channel,
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
