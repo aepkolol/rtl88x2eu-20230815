@@ -11107,7 +11107,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .change_beacon = cfg80211_rtw_change_beacon,
     .stop_ap = cfg80211_rtw_stop_ap,
 #endif
-#endif
+
 
 #if CONFIG_RTW_MACADDR_ACL && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))
     .set_mac_acl = cfg80211_rtw_set_mac_acl,
@@ -11144,6 +11144,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
         .get_mpp = cfg80211_rtw_get_mpp,
         .dump_mpp = cfg80211_rtw_dump_mpp,
     #endif
+#endif
 #endif
 
 #if defined(CONFIG_P2P) && defined(RTW_DEDICATED_P2P_DEVICE)
