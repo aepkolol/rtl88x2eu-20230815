@@ -509,26 +509,11 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
 	if (started) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 148))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
 		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, 0, false);
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 148) || defined(CONFIG_MLD_KERNEL_PATCH))
 		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, 0, false);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
-		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
-#else
-		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef);
-#endif
-	} else {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 148))
-		cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
-		cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
-#else
-		cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
-#endif
-	}
-#endif
-
 
 		/* --- cfg80211_ch_switch_started_notfiy() ---
 		 *  A new parameter, bool quiet, is added from Linux kernel v5.11,
@@ -549,14 +534,13 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
 	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
 		goto exit;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2))
-    cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-    cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
+	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
+#elif (defined(CONFIG_MLD_KERNEL_PATCH) || (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 148)))
+	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
 #else
-    cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
+	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
 #endif
-
 
 #else
 	int freq = rtw_ch2freq(ch);
@@ -1233,12 +1217,12 @@ check_bss:
 		#endif /* kernel < v4.12.0 */
 		#endif
 
-		#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 148))
-			roam_info.links[0].bssid = cur_network->network.MacAddress;
-		#else
-			roam_info.bssid = cur_network->network.MacAddress;
+		#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+		#if (defined(CONFIG_MLD_KERNEL_PATCH) || LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 148))
+		roam_info.links[0].bssid = cur_network->network.MacAddress;
+		#else	
+		roam_info.bssid = cur_network->network.MacAddress;
 		#endif
-
 		roam_info.req_ie = pmlmepriv->assoc_req + sizeof(struct rtw_ieee80211_hdr_3addr) + 2;
 		roam_info.req_ie_len = pmlmepriv->assoc_req_len - sizeof(struct rtw_ieee80211_hdr_3addr) - 2;
 		roam_info.resp_ie = pmlmepriv->assoc_rsp + sizeof(struct rtw_ieee80211_hdr_3addr) + 6;
@@ -11042,20 +11026,9 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 	.set_pmksa = cfg80211_rtw_set_pmksa,
 	.del_pmksa = cfg80211_rtw_del_pmksa,
 	.flush_pmksa = cfg80211_rtw_flush_pmksa,
+
 	.add_virtual_intf = cfg80211_rtw_add_virtual_intf,
 	.del_virtual_intf = cfg80211_rtw_del_virtual_intf,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-	.get_channel = cfg80211_rtw_get_channel_v2,
-#else
-	.get_channel = cfg80211_rtw_get_channel,
-#endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 148))
-	.stop_ap = cfg80211_rtw_stop_ap_v2,
-#else
-	.stop_ap = cfg80211_rtw_stop_ap,
-#endif
-};
-
 
 #ifdef CONFIG_AP_MODE
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0)) && !defined(COMPAT_KERNEL_RELEASE)
@@ -11108,10 +11081,8 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
 	.set_monitor_channel = cfg80211_rtw_set_monitor_channel,
 #endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 78))
-    .get_channel = cfg80211_rtw_get_channel_v2,
-#else
-    .get_channel = cfg80211_rtw_get_channel,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+	.get_channel = cfg80211_rtw_get_channel,
 #endif
 
 	.remain_on_channel = cfg80211_rtw_remain_on_channel,
