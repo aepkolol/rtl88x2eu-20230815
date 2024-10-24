@@ -11047,6 +11047,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .set_default_key = (int (*)(struct wiphy *, struct net_device *, u8, bool, bool)) cfg80211_rtw_set_default_key,
     .set_default_mgmt_key = (int (*)(struct wiphy *, struct net_device *, u8)) cfg80211_rtw_set_default_mgmt_key,
 	.set_monitor_channel = cfg80211_rtw_set_monitor_channel,
+	.get_channel = cfg80211_rtw_get_channel,
 #else
     // Generic function pointer assignment for other kernel versions
     .add_key = cfg80211_rtw_add_key,
@@ -11054,6 +11055,7 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
     .del_key = cfg80211_rtw_del_key,
     .set_default_key = cfg80211_rtw_set_default_key,
 	.set_monitor_channel = cfg80211_rtw_set_monitor_channel,
+	.get_channel = cfg80211_rtw_get_channel,
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
@@ -11138,10 +11140,6 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 	.get_mpp = cfg80211_rtw_get_mpp,
 	.dump_mpp = cfg80211_rtw_dump_mpp,
 	#endif
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-	.get_channel = cfg80211_rtw_get_channel,
 #endif
 
 	.remain_on_channel = cfg80211_rtw_remain_on_channel,
