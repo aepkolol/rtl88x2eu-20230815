@@ -514,7 +514,7 @@ cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
 		goto exit;
 
 
-	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
+	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
 
 #else
 	int freq = rtw_ch2freq(ch);
