@@ -4760,7 +4760,6 @@ static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
 	struct rtw_wiphy_data *wiphy_data = rtw_wiphy_priv(wiphy);
 	_adapter *adapter = wiphy_to_adapter(wiphy);
 	int ret = -EOPNOTSUPP;
-    int openhd_override_tx_power_mbm=0;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	if (wdev) {
@@ -4808,19 +4807,6 @@ static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
 	default:
 		RTW_WARN(FUNC_WIPHY_FMT" unknown type:%d\n", FUNC_WIPHY_ARG(wiphy), type);
 	}
-// OpenHD
-#if 0
-    openhd_override_tx_power_mbm=get_openhd_override_tx_power_mbm();
-    if(openhd_override_tx_power_mbm){
-        wiphy_data->txpwr_total_lmt_mbm = UNSPECIFIED_MBM;
-        wiphy_data->txpwr_total_target_mbm= openhd_override_tx_power_mbm;
-        // If the chip cannot do the requested tx power, the driver just seems to set tx power index 63"
-        RTW_WARN("Using openhd_override_tx_power_mbm %d",openhd_override_tx_power_mbm);
-    }
-    #endif
-    RTW_WARN(FUNC_WIPHY_FMT" OpenHD cf80211 tx power %s txpwr_total_lmt_mbm:%d txpwr_total_target_mbm%d openhd_override_tx_power_mbm:%d\n", FUNC_WIPHY_ARG(wiphy)
-		, nl80211_tx_power_setting_str(type), wiphy_data->txpwr_total_lmt_mbm,wiphy_data->txpwr_total_target_mbm,
-        openhd_override_tx_power_mbm);
 
 	if (ret == 0)
 		rtw_run_in_thread_cmd_wait(adapter, ((void *)(rtw_update_txpwr_level_all_hwband)), adapter_to_dvobj(adapter), 2000);
