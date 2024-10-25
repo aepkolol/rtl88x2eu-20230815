@@ -508,7 +508,7 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
 	if (ret != _SUCCESS)
 		goto exit;
 
-cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
+	cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
 
 	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
 		goto exit;
@@ -7254,7 +7254,6 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 	_adapter *padapter = wiphy_to_adapter(wiphy);
 	u8 target_channal, target_offset, target_width, ht_option;
     int openhd_override_channel=0;
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #ifdef CONFIG_DEBUG_CFG80211
 	RTW_INFO("center_freq %u Mhz ch %u width %u freq1 %u freq2 %u\n"
