@@ -6108,7 +6108,7 @@ static ssize_t proc_set_single_tone(struct file *file, const char __user *buffer
 	}
 
 	if (buffer && !copy_from_user(tmp, buffer, count)) {
-		int num = sscanf(tmp, "%u %u", &en, &rf_path);
+		num = sscanf(tmp, "%u %u", &en, &rf_path);
 		if (num < 1)
 			return count;
 	}

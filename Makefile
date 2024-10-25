@@ -1060,9 +1060,9 @@ ifeq ($(CONFIG_RTL8822E), y)
 RTL871X := rtl8822e
 ifeq ($(CONFIG_USB_HCI), y)
 ifeq ($(CONFIG_BT_COEXIST), n)
-MODULE_NAME = 8812eu
+MODULE_NAME = 8812eu_spiri
 else
-MODULE_NAME = 88x2eu
+MODULE_NAME = 88x2eu_spiri
 endif
 endif
 ifeq ($(CONFIG_PCI_HCI), y)

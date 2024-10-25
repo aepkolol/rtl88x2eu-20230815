@@ -7,9 +7,9 @@ else
   echo "About to run dkms removal steps..."
 fi
 
-DRV_DIR=rtl88x2eu
-DRV_NAME=rtl88x2eu
-DRV_VERSION=5.15.0.1
+DRV_DIR=rtl88x2eu_spiri
+DRV_NAME=rtl88x2eu_spiri
+DRV_VERSION=5.15.148
 
 dkms remove ${DRV_NAME}/${DRV_VERSION} --all
 rm -rf /usr/src/${DRV_NAME}-${DRV_VERSION}
