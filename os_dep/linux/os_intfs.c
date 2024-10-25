@@ -6003,7 +6003,4 @@ int get_openhd_override_tx_power_mbm(void){
     return openhd_override_tx_power_mbm;
 }
 
-EXPORT_SYMBOL(get_openhd_override_channel);
-EXPORT_SYMBOL(get_openhd_override_tx_power_mbm);
-
 #endif

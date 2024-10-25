@@ -2234,4 +2234,7 @@ int rtw_suspend_free_assoc_resource(_adapter *padapter);
 int get_openhd_override_channel(void);
 int get_openhd_override_tx_power_mbm(void);
 
+EXPORT_SYMBOL(get_openhd_override_channel);
+EXPORT_SYMBOL(get_openhd_override_tx_power_mbm);
+
 #endif /* __DRV_TYPES_H__ */
