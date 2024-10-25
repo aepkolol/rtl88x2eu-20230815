@@ -508,7 +508,7 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
 	if (ret != _SUCCESS)
 		goto exit;
 
-	cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
+	cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
 
 	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
 		goto exit;
