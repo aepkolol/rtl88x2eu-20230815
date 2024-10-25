@@ -236,7 +236,7 @@ enum nl80211_band _rtw_band_to_nl80211_band[] = {
 BAND_TYPE _nl80211_band_to_rtw_band[] = {
 	[NL80211_BAND_2GHZ] =	BAND_ON_2_4G,
 	[NL80211_BAND_5GHZ] =	BAND_ON_5G,
-	[NL80211_BAND_6GHZ] =	BAND_ON_6G,
+	[NL80211_BAND_6GHZ] =	BAND_MAX,
 };
 
 static int rtw_cfg80211_set_assocresp_ies(struct net_device *net, const u8 *buf, int len);
@@ -672,7 +672,7 @@ NDIS_802_11_NETWORK_INFRASTRUCTURE nl80211_iftype_to_rtw_network_type(enum nl802
 	case NL80211_IFTYPE_ADHOC:
 		return Ndis802_11IBSS;
 
-	#if defined(CONFIG_P2P) && ((LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) 
+	#if defined(CONFIG_P2P) && ((LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)))
 	case NL80211_IFTYPE_P2P_CLIENT:
 	#endif
 	case NL80211_IFTYPE_STATION:
