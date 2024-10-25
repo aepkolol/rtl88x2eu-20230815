@@ -6091,6 +6091,7 @@ static ssize_t proc_set_single_tone(struct file *file, const char __user *buffer
 	struct dm_struct *dm;
 	char tmp[32];
 	u32 en, rf_path;
+	int num; 
 	
 	dm = adapter_to_phydm(padapter);
 
