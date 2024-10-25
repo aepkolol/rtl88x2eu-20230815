@@ -1,3 +1,4 @@
+
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2021 Realtek Corporation.
@@ -16,6 +17,8 @@
 
 #include <drv_types.h>
 #include <hal_data.h>
+
+#ifdef CONFIG_IOCTL_CFG80211
 
 #ifndef DBG_RTW_CFG80211_STA_PARAM
 #define DBG_RTW_CFG80211_STA_PARAM 0
@@ -91,29 +94,6 @@
 #define WIFI_CIPHER_SUITE_BIP_GMAC_128	0x000FAC0B
 #define WIFI_CIPHER_SUITE_BIP_GMAC_256	0x000FAC0C
 #define WIFI_CIPHER_SUITE_BIP_CMAC_256	0x000FAC0D
-
-// Perform a single kernel version check to determine which version range it falls into
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
-#pragma message("Kernel version falls between 6.3.0 and less than 6.9.0")
-
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) || \
-      (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
-#pragma message("Kernel version falls between 6.1.0 and less than 6.3.0, or 5.15.0 to less than 6.9.0")
-
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 78)
-#pragma message("Kernel version is 5.15.78 or above")
-
-#elif (LINUX_VERSION_CODE == KERNEL_VERSION(5, 15, 148))
-#pragma message("Kernel version is 5.15.148")
-
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)) || \
-      defined(RHEL_RELEASE_CODE) && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
-#pragma message("Kernel version falls between 5.11.0 and less than 5.15.0, or RHEL version 8.0 or higher")
-
-#else
-#pragma message("Kernel version is lower than 5.11.0")
-
-#endif
 
 /*
  * If customer need, defining this flag will make driver 
@@ -529,52 +509,38 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
 		goto exit;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
-    if (started) {
-        #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
-            // Kernel versions between 6.3.0 and less than 6.9.0
-            cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, 0, false, 0);
-        
-        #elif (LINUX_VERSION_CODE == KERNEL_VERSION(5, 15, 148))
-            // Specific kernel version 5.15.148
-            cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
+	if (started) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
+		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, 0, false, 0);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) || defined(CONFIG_MLD_KERNEL_PATCH))
+		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, 0, false);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
 
-        #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) || \
-              (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)) || \
-              defined(CONFIG_MLD_KERNEL_PATCH)
-            // Kernel versions between 6.1.0 and less than 6.3.0, or 5.15.0 to less than 6.1.0, or CONFIG_MLD_KERNEL_PATCH
-            cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, 0, false);
+		/* --- cfg80211_ch_switch_started_notfiy() ---
+		 *  A new parameter, bool quiet, is added from Linux kernel v5.11,
+		 *  to see if block-tx was requested by the AP. since currently,
+		 *  the API is used for station before connected in rtw_chk_start_clnt_join()
+		 *  the quiet is set to false here first. May need to refine it if
+		 *  called by others with block-tx.
+		 */
 
-        #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
-            // Kernel versions 5.11.0 and above (but less than 5.15.0 and not covered by previous conditions)
-            cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
-        
-        #else
-            // Kernel versions lower than 5.11.0
-            cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
-        
-        #endif
-
-        goto exit;
-    }
+		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
+#else
+		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
 #endif
-
-
+		goto exit;
+	}
+#endif
 
 	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
 		goto exit;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
-    cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0, 0);
-
-#elif (LINUX_VERSION_CODE == KERNEL_VERSION(5, 15, 148))
-    // Specific kernel version 5.15.148
-    cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
-
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
-    cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 9, 0))
+	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0, 0);
+#elif (defined(CONFIG_MLD_KERNEL_PATCH) || (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)))
+	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef, 0);
 #else
-    cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
+	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
 #endif
 
 #else
@@ -1253,19 +1219,11 @@ check_bss:
 		#endif
 
 		#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-
-		#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0))
+		#if (defined(CONFIG_MLD_KERNEL_PATCH) || LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0))
 		roam_info.links[0].bssid = cur_network->network.MacAddress;
-
-		#elif (LINUX_VERSION_CODE == KERNEL_VERSION(5, 15, 148))
-			// Specific kernel version 5.15.148
-			roam_info.bssid = cur_network->network.MacAddress;
-
-		#else
-			roam_info.bssid = cur_network->network.MacAddress;
+		#else	
+		roam_info.bssid = cur_network->network.MacAddress;
 		#endif
-
-		
 		roam_info.req_ie = pmlmepriv->assoc_req + sizeof(struct rtw_ieee80211_hdr_3addr) + 2;
 		roam_info.req_ie_len = pmlmepriv->assoc_req_len - sizeof(struct rtw_ieee80211_hdr_3addr) - 2;
 		roam_info.resp_ie = pmlmepriv->assoc_rsp + sizeof(struct rtw_ieee80211_hdr_3addr) + 6;
@@ -2379,7 +2337,6 @@ exit:
 }
 
 static int cfg80211_rtw_del_key(struct wiphy *wiphy, struct net_device *ndev
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)) || defined(COMPAT_KERNEL_RELEASE)
 	, u8 key_index, bool pairwise, const u8 *mac_addr)
 {
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(ndev);
@@ -2396,9 +2353,6 @@ static int cfg80211_rtw_del_key(struct wiphy *wiphy, struct net_device *ndev
 }
 
 static int cfg80211_rtw_set_default_key(struct wiphy *wiphy, struct net_device *ndev
-#if (defined(CONFIG_MLD_KERNEL_PATCH) && LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
-	, int link_id
-#endif
 	, u8 key_index
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)) || defined(COMPAT_KERNEL_RELEASE)
 	, bool unicast, bool multicast
@@ -4837,6 +4791,7 @@ static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
 	struct rtw_wiphy_data *wiphy_data = rtw_wiphy_priv(wiphy);
 	_adapter *adapter = wiphy_to_adapter(wiphy);
 	int ret = -EOPNOTSUPP;
+    int openhd_override_tx_power_mbm=0;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	if (wdev) {
@@ -4884,6 +4839,19 @@ static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
 	default:
 		RTW_WARN(FUNC_WIPHY_FMT" unknown type:%d\n", FUNC_WIPHY_ARG(wiphy), type);
 	}
+// OpenHD
+#if 0
+    openhd_override_tx_power_mbm=get_openhd_override_tx_power_mbm();
+    if(openhd_override_tx_power_mbm){
+        wiphy_data->txpwr_total_lmt_mbm = UNSPECIFIED_MBM;
+        wiphy_data->txpwr_total_target_mbm= openhd_override_tx_power_mbm;
+        // If the chip cannot do the requested tx power, the driver just seems to set tx power index 63"
+        RTW_WARN("Using openhd_override_tx_power_mbm %d",openhd_override_tx_power_mbm);
+    }
+    #endif
+    RTW_WARN(FUNC_WIPHY_FMT" OpenHD cf80211 tx power %s txpwr_total_lmt_mbm:%d txpwr_total_target_mbm%d openhd_override_tx_power_mbm:%d\n", FUNC_WIPHY_ARG(wiphy)
+		, nl80211_tx_power_setting_str(type), wiphy_data->txpwr_total_lmt_mbm,wiphy_data->txpwr_total_target_mbm,
+        openhd_override_tx_power_mbm);
 
 	if (ret == 0)
 		rtw_run_in_thread_cmd_wait(adapter, ((void *)(rtw_update_txpwr_level_all_hwband)), adapter_to_dvobj(adapter), 2000);
@@ -5793,17 +5761,11 @@ static int rtw_cfg80211_set_beacon_ies(struct net_device *net, const u8 *head,
 }
 
 static int cfg80211_rtw_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
-		struct cfg80211_ap_update *params)
-#else
 		struct cfg80211_beacon_data *info)
-#endif
 {
 	int ret = 0;
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(ndev);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0)
-	struct cfg80211_beacon_data *info = &params->beacon;
-#endif
+
 	RTW_INFO(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 
 #ifdef not_yet
@@ -7238,7 +7200,7 @@ exit:
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 static int cfg80211_rtw_get_channel(struct wiphy *wiphy,
 	struct wireless_dev *wdev,
-#if (defined(CONFIG_MLD_KERNEL_PATCH) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)))
+#if (defined(CONFIG_MLD_KERNEL_PATCH) || (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)))
 	unsigned int link_id,
 #endif
 	struct cfg80211_chan_def *chandef)
@@ -7339,6 +7301,7 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 {
 	_adapter *padapter = wiphy_to_adapter(wiphy);
 	u8 target_channal, target_offset, target_width, ht_option;
+    int openhd_override_channel=0;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #ifdef CONFIG_DEBUG_CFG80211
@@ -7363,9 +7326,17 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 	rtw_get_chbw_from_nl80211_channel_type(chan, channel_type,
 		&ht_option, &target_channal, &target_width, &target_offset);
 #endif
-	RTW_INFO(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d\n",
+    openhd_override_channel=get_openhd_override_channel();
+    if(openhd_override_channel){
+        target_channal=openhd_override_channel;
+        RTW_WARN("OpenHD: using openhd_override_channel");
+    }
+    
+    if(true){
+	    RTW_WARN(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d OpenHD channel debug override:%d\n",
 		FUNC_ADPT_ARG(padapter), target_channal,
-		target_width, target_offset);
+        target_width, target_offset,openhd_override_channel);
+	}
 
 	rtw_set_chbw_cmd(padapter, target_channal, target_width,
 		target_offset, RTW_CMDF_WAIT_ACK);
@@ -11019,7 +10990,9 @@ static struct cfg80211_ops rtw_cfg80211_ops = {
 	.get_key = cfg80211_rtw_get_key,
 	.del_key = cfg80211_rtw_del_key,
 	.set_default_key = cfg80211_rtw_set_default_key,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
 	.set_default_mgmt_key = cfg80211_rtw_set_default_mgmt_key,
+#endif
 #if defined(CONFIG_GTK_OL) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 1, 0))
 	.set_rekey_data = cfg80211_rtw_set_rekey_data,
 #endif /*CONFIG_GTK_OL*/
@@ -11360,21 +11333,11 @@ void rtw_wdev_unregister(struct wireless_dev *wdev)
 
 	rtw_cfg80211_indicate_scan_done(adapter, _TRUE);
 
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)) || defined(COMPAT_KERNEL_RELEASE)
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0))
-		if (wdev->valid_links && wdev->links[0].client.current_bss)
-	#elif (LINUX_VERSION_CODE == KERNEL_VERSION(5, 15, 148))
-		// Specific kernel version 5.15.148
-		if (wdev->current_bss)
-	#else
-		if (wdev->current_bss)
-	#endif
-
+	if (wdev->current_bss)
 	{
 		RTW_INFO(FUNC_ADPT_FMT" clear current_bss by cfg80211_disconnected\n", FUNC_ADPT_ARG(adapter));
 		rtw_cfg80211_indicate_disconnect(adapter, 0, 1);
 	}
-	#endif
 
 	if (pwdev_priv->pmon_ndev) {
 		RTW_INFO("%s, unregister monitor interface\n", __func__);
