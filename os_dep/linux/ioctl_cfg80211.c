@@ -6999,9 +6999,7 @@ static int cfg80211_rtw_get_channel(struct wiphy *wiphy,
     // Check if the device is associated (connected to a network)
     if (MLME_IS_ASOC(padapter)) {
         pr_info("cfg80211: Device is associated.\n");
-#ifdef CONFIG_80211N_HT
         ht_option = padapter->mlmepriv.htpriv.ht_option;
-#endif
         report = 1;
 
     } else if (MLME_IS_MONITOR(padapter)) {
@@ -7116,8 +7114,10 @@ static void rtw_get_chbwoff_from_cfg80211_chan_def(
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		*ht = 0;
+		*bw = CHANNEL_WIDTH_20;
+		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 		RTW_INFO("Detected 20 MHz NOHT mode\n");
-		fallthrough;
+		break;
 	case NL80211_CHAN_WIDTH_20:
 		*bw = CHANNEL_WIDTH_20;
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
