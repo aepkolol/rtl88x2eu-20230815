@@ -989,9 +989,7 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
     PHAL_DATA_TYPE hal = GET_HAL_DATA(adapter);
     struct dm_struct *p_dm_odm = &hal->odmpriv;
     u8 switch_band = _FALSE;
-    int ret;
 
-    // Log entry into the function
     RTW_INFO("[%s] Entering channel switch function\n", __FUNCTION__);
 
     if (adapter->bNotifyChannelChange) {
@@ -1000,17 +998,14 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
                  hal->bSetChnlBW, hal->current_channel_bw);
     }
 
-    // Ensure the adapter is ready for channel switching
     if (RTW_CANNOT_RUN(adapter)) {
         RTW_WARN("Cannot perform channel switch. Adapter state invalid.\n");
         hal->bSwChnlAndSetBWInProgress = _FALSE;
         return;
     }
 
-    // Mutex lock to prevent concurrent access
     mutex_lock(&adapter->rtw_wdev->mtx);
 
-    // Prevent redundant channel switches
     if (hal->current_channel == hal->last_channel &&
         hal->current_channel_bw == hal->last_bw) {
         RTW_INFO("[%s] No change in channel/BW. Skipping switch.\n", __FUNCTION__);
@@ -1018,11 +1013,9 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
         return;
     }
 
-    // Determine if a band switch is required
     switch_band = need_switch_band(adapter, hal->current_channel);
     RTW_INFO("Need to switch band: %d (0:No, 1:Yes)\n", switch_band);
 
-    // Perform the channel switch using driver or firmware logic
 #ifdef RTW_CHANNEL_SWITCH_OFFLOAD
     if (hal->ch_switch_offload) {
 #ifdef RTW_REDUCE_SCAN_SWITCH_CH_TIME
@@ -1031,7 +1024,6 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
         struct mlme_ext_priv *mlmeext;
         u8 drv_switch = _TRUE;
 
-        // Check if any interfaces are currently scanning
         for (int i = 0; i < dvobj->iface_nums; i++) {
             iface = dvobj->padapters[i];
             mlmeext = &iface->mlmeextpriv;
@@ -1045,38 +1037,28 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
         }
 
         if (drv_switch == _TRUE)
-            ret = switch_chnl_and_set_bw_by_drv(adapter, switch_band);
+            switch_chnl_and_set_bw_by_drv(adapter, switch_band);
         else
-            ret = switch_chnl_and_set_bw_by_fw(adapter, switch_band);
+            switch_chnl_and_set_bw_by_fw(adapter, switch_band);
 #else
-        ret = switch_chnl_and_set_bw_by_fw(adapter, switch_band);
+        switch_chnl_and_set_bw_by_fw(adapter, switch_band);
 #endif
     } else {
-        ret = switch_chnl_and_set_bw_by_drv(adapter, switch_band);
+        switch_chnl_and_set_bw_by_drv(adapter, switch_band);
     }
 #else
-    ret = switch_chnl_and_set_bw_by_drv(adapter, switch_band);
+    switch_chnl_and_set_bw_by_drv(adapter, switch_band);
 #endif
 
-    if (ret != 0) {
-        RTW_WARN("Channel switch failed. Channel: %d, BW: %d\n",
-                 hal->current_channel, hal->current_channel_bw);
-        mutex_unlock(&adapter->rtw_wdev->mtx);
-        return;
-    }
-
-    // Update state to prevent redundant switches
     hal->last_channel = hal->current_channel;
     hal->last_bw = hal->current_channel_bw;
 
-    // Log the new channel and bandwidth
     RTW_INFO("Switched to channel %d, BW %d\n", hal->current_channel, hal->current_channel_bw);
 
 #ifdef CONFIG_HAS_OFFSET_FIELD
     RTW_INFO("New Channel Offset: %d\n", hal->cur_ch_offset);
 #endif
 
-    // Handle Bluetooth coexistence if required
     if (switch_band) {
 #ifdef CONFIG_BT_COEXIST
         if (hal->EEPROMBluetoothCoexist) {
@@ -1094,7 +1076,6 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
 #endif
     }
 
-    // Perform power-level adjustments and calibration
     phydm_config_kfree(p_dm_odm, hal->current_channel);
     odm_clear_txpowertracking_state(p_dm_odm);
     rtw_hal_set_tx_power_level(adapter, hal->current_channel);
@@ -1105,7 +1086,6 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
         hal->bNeedIQK = _FALSE;
     }
 
-    // Unlock mutex and complete the operation
     mutex_unlock(&adapter->rtw_wdev->mtx);
 
     RTW_INFO("[%s] Completed channel switch.\n", __FUNCTION__);
