@@ -4591,7 +4591,6 @@ static int cfg80211_rtw_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 	return 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
 #ifdef CONFIG_RTW_DEBUG
 static const char *nl80211_tx_power_setting_str(int type)
 {
