@@ -16,7 +16,6 @@
 
 #include <drv_types.h>
 #include <hal_data.h>
-#include <linux/mutex.h>  // For mutex functions
 
 #define CONFIG_RTW_DEBUG true
 
@@ -7322,7 +7321,6 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 		, chandef->center_freq2);
 #endif /* CONFIG_DEBUG_CFG80211 */
 
-	mutex_lock(&wdev->mtx);  // Lock mutex
 	
 	// Update internal state
     mlmeext->cur_channel = target_channel;
@@ -7338,7 +7336,6 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 		, chan->hw_value
 		, channel_type);
 #endif /* CONFIG_DEBUG_CFG80211 */
-	mutex_lock(&wdev->mtx);  // Lock mutex
 	
 	// Update internal state
     mlmeext->cur_channel = target_channel;
@@ -7353,7 +7350,7 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 		target_width, target_offset);
 
 	rtw_set_chbw_cmd(padapter, target_channel, target_width, target_offset, RTW_CMDF_WAIT_ACK);
-	mutex_unlock(&wdev->mtx);  // Unlock mutex
+
 	return 0;
 }
 
