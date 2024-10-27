@@ -7131,37 +7131,47 @@ exit:
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 static int cfg80211_rtw_get_channel(struct wiphy *wiphy,
-	struct wireless_dev *wdev,
-	struct cfg80211_chan_def *chandef)
+                                    struct wireless_dev *wdev,
+                                    struct cfg80211_chan_def *chandef)
 {
-	_adapter *padapter = wiphy_to_adapter(wiphy);
-	struct mlme_ext_priv *mlmeext = &(padapter->mlmeextpriv);
-	u8 ht_option = 0;
-	u8 report = 0;
-	int retval = 1;
+    _adapter *padapter = wiphy_to_adapter(wiphy);
+    struct mlme_ext_priv *mlmeext = &(padapter->mlmeextpriv);
+    u8 ht_option = 0;
+    u8 report = 0;
+    int retval = 1;
 
-	if (MLME_IS_ASOC(padapter)) {
+    pr_info("cfg80211: Checking current channel configuration.\n");
+
+    // Check if the device is associated (connected to a network)
+    if (MLME_IS_ASOC(padapter)) {
+        pr_info("cfg80211: Device is associated.\n");
 #ifdef CONFIG_80211N_HT
-		ht_option = padapter->mlmepriv.htpriv.ht_option;
-#endif /* CONFIG_80211N_HT */
-		report = 1;
-	} else if (MLME_IS_MONITOR(padapter)) {
-		/* monitor mode always set to HT
-		   we don't support sniffer No HT */
-		ht_option = 1;
-		report = 1;
-	}
+        ht_option = padapter->mlmepriv.htpriv.ht_option;
+#endif
+        report = 1;
 
-	if (report) {
-		rtw_chbw_to_cfg80211_chan_def(wiphy, chandef,
-			mlmeext->cur_channel, mlmeext->cur_bwmode,
-			mlmeext->cur_ch_offset, ht_option);
-		retval = 0;
-	}
+    } else if (MLME_IS_MONITOR(padapter)) {
+        pr_info("cfg80211: Device is in monitor mode. Enabling HT.\n");
+        ht_option = 1;  // Monitor mode uses HT by default
+        report = 1;
+    }
 
-	return retval;
+    // Report current channel if valid
+    if (report) {
+        rtw_chbw_to_cfg80211_chan_def(wiphy, chandef,
+                                      mlmeext->cur_channel,
+                                      mlmeext->cur_bwmode,
+                                      mlmeext->cur_ch_offset,
+                                      ht_option);
+        pr_info("cfg80211: Reported channel - freq: %u, width: %d\n",
+                chandef->chan->center_freq, chandef->width);
+        retval = 0;
+    } else {
+        pr_warn("cfg80211: No valid channel configuration to report.\n");
+    }
+
+    return retval;
 }
 
 static void rtw_get_chbwoff_from_cfg80211_chan_def(
