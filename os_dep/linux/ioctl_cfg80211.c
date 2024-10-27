@@ -318,12 +318,12 @@ const char *nl80211_chan_width_str(enum nl80211_chan_width cwidth)
 	};
 }
 
-void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef, 
-                                         u8 *ht, u8 *ch, u8 *bw, u8 *offset)
+void rtw_get_chbw_from_cfg80211_chan_def(
+    struct cfg80211_chan_def *chdef, u8 *ht, u8 *ch, u8 *bw, u8 *offset)
 {
     struct ieee80211_channel *chan = chdef->chan;
 
-    // Validate the primary frequency for the channel
+    // Validate primary frequency
     int pri_freq = rtw_ch2freq(chan->hw_value);
     if (!pri_freq) {
         RTW_WARN("Invalid channel: %d\n", chan->hw_value);
@@ -332,10 +332,10 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
         return;
     }
 
-    // Set the default channel value
+    // Set default channel
     *ch = chan->hw_value;
 
-    // Map the cfg80211 channel width to internal bandwidth and offset
+    // Map channel width to internal driver values
     switch (chdef->width) {
         case NL80211_CHAN_WIDTH_20_NOHT:
             *ht = 0;
@@ -352,10 +352,11 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
         case NL80211_CHAN_WIDTH_40:
             *ht = 1;
             *bw = CHANNEL_WIDTH_40;
-            *offset = (pri_freq > chdef->center_freq1) ? 
-                      HAL_PRIME_CHNL_OFFSET_UPPER : HAL_PRIME_CHNL_OFFSET_LOWER;
+            *offset = (pri_freq > chdef->center_freq1) 
+                        ? HAL_PRIME_CHNL_OFFSET_UPPER 
+                        : HAL_PRIME_CHNL_OFFSET_LOWER;
 
-            // Validate the offset using rtw_get_offset_by_chbw()
+            // Validate offset
             if (rtw_get_offset_by_chbw(*ch, *bw, offset)) {
                 *ch = chan->hw_value;
             }
@@ -365,7 +366,7 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
             *ht = 1;
             *bw = CHANNEL_WIDTH_80;
 
-            // Validate the offset using rtw_get_offset_by_chbw()
+            // Validate offset
             if (rtw_get_offset_by_chbw(*ch, *bw, offset)) {
                 *ch = chan->hw_value;
             }
@@ -375,7 +376,7 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
             *ht = 1;
             *bw = CHANNEL_WIDTH_160;
 
-            // Validate the offset using rtw_get_offset_by_chbw()
+            // Validate offset
             if (rtw_get_offset_by_chbw(*ch, *bw, offset)) {
                 *ch = chan->hw_value;
             }
@@ -384,6 +385,7 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
         case NL80211_CHAN_WIDTH_80P80:
             *ht = 1;
             *bw = CHANNEL_WIDTH_80_80;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
             break;
 
         case NL80211_CHAN_WIDTH_5:
@@ -399,19 +401,19 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
             break;
 
         default:
-            // Handle unsupported channel widths gracefully
             *ht = 0;
-            *bw = CHANNEL_WIDTH_20;  // Fallback to 20 MHz
+            *bw = CHANNEL_WIDTH_20;
             *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
             RTW_WARN("Unsupported channel width: %u\n", chdef->width);
             rtw_warn_on(1);
             break;
     }
 
-    // Log the final configuration for debugging
+    // Debug information
     RTW_INFO("Configured channel: %d, BW: %u, Offset: %u, HT: %u\n", 
              *ch, *bw, *offset, *ht);
 }
+
 
 static enum nl80211_channel_type rtw_chbw_to_nl80211_channel_type(u8 ch, u8 bw, u8 offset, u8 ht)
 {
