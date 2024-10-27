@@ -240,6 +240,30 @@ BAND_TYPE _nl80211_band_to_rtw_band[] = {
 
 static int rtw_cfg80211_set_assocresp_ies(struct net_device *net, const u8 *buf, int len);
 
+const char *nl80211_chan_width_str(enum nl80211_chan_width cwidth)
+{
+	switch (cwidth) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		return "20_NOHT";
+	case NL80211_CHAN_WIDTH_20:
+		return "20";
+	case NL80211_CHAN_WIDTH_40:
+		return "40";
+	case NL80211_CHAN_WIDTH_80:
+		return "80";
+	case NL80211_CHAN_WIDTH_80P80:
+		return "80+80";
+	case NL80211_CHAN_WIDTH_160:
+		return "160";
+	case NL80211_CHAN_WIDTH_5:
+		return "5";
+	case NL80211_CHAN_WIDTH_10:
+		return "10";
+	default:
+		return "INVALID";
+	};
+}
+
 static u8 rtw_chbw_to_cfg80211_chan_def(struct wiphy *wiphy, 
                                         struct cfg80211_chan_def *chdef, 
                                         u8 ch, u8 bw, u8 offset, u8 ht)
@@ -7171,7 +7195,7 @@ static int cfg80211_rtw_set_monitor_channel(
             RTW_INFO("Setting 10 MHz mode\n");
             break;
         default:
-            RTW_WARN("Unsupported channel width: %s\n", nl80211_chan_width_str(chandef->width));
+            RTW_WARN("Unsupported channel width: %s\n", chandef->width);
             mutex_unlock(&wdev->mtx);  // Unlock mutex before returning
             return -EINVAL;
     }
