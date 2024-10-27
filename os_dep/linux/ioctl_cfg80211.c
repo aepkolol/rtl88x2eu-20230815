@@ -7252,7 +7252,7 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy,
     u8 target_bw = CHANNEL_WIDTH_20;  // Default to 20 MHz
     u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
-    RTW_INFO("Monitor Channel - center_freq: %u MHz, channel: %u, width: %u\n",
+    RTW_WARN("Monitor Channel - center_freq: %u MHz, channel: %u, width: %u\n",
              chandef->center_freq1, target_channel, chandef->width);
 
     // Map cfg80211 width to internal bandwidth values
@@ -7283,7 +7283,7 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy,
     }
 
     // Log the extracted values for debugging
-    RTW_INFO("Setting monitor mode - Channel: %u, BW: %u, Offset: %u\n",
+    RTW_WARN("Setting monitor mode - Channel: %u, BW: %u, Offset: %u\n",
              target_channel, target_bw, target_offset);
 
     // Update internal driver state with the new channel configuration
@@ -7302,7 +7302,7 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy,
         return ret;  // Return error code if channel setting fails
     }
 
-    RTW_INFO("Successfully set monitor mode on channel %u\n", target_channel);
+    RTW_WARN("Successfully set monitor mode on channel %u\n", target_channel);
     return 0;
 }
 
