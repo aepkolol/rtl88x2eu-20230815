@@ -7027,21 +7027,6 @@ static int cfg80211_rtw_get_channel(struct wiphy *wiphy,
     return retval;
 }
 
-const char *nl80211_chan_width_str(enum nl80211_chan_width cwidth) 
-{
-    switch (cwidth) {
-        case NL80211_CHAN_WIDTH_20_NOHT: return "20_NOHT";
-        case NL80211_CHAN_WIDTH_20: return "20";
-        case NL80211_CHAN_WIDTH_40: return "40";
-        case NL80211_CHAN_WIDTH_80: return "80";
-        case NL80211_CHAN_WIDTH_80P80: return "80+80";
-        case NL80211_CHAN_WIDTH_160: return "160";
-        case NL80211_CHAN_WIDTH_5: return "5";
-        case NL80211_CHAN_WIDTH_10: return "10";
-        default: return "INVALID";
-    }
-}
-
 void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef, 
                                          u8 *ht, u8 *ch, u8 *bw, u8 *offset) 
 {
@@ -7141,8 +7126,8 @@ static int cfg80211_rtw_set_monitor_channel(
 
     // Log chandef parameters
     RTW_INFO("Entering cfg80211_rtw_set_monitor_channel\n");
-    RTW_INFO("chandef - Channel: %u, Width: %s, Center Freq1: %u MHz\n", 
-             chandef->chan->hw_value, nl80211_chan_width_str(chandef->width), chandef->center_freq1);
+    RTW_INFO("chandef - Channel: %u, Width: %u, Center Freq1: %u MHz, Center Freq2: %u MHz, Offset: %u\n", 
+             chandef->chan->hw_value, chandef->width, chandef->center_freq1, chandef->center_freq2, chandef->freq1_offset);
 
     mutex_lock(&wdev->mtx);  // Lock mutex for thread-safe operation
 
