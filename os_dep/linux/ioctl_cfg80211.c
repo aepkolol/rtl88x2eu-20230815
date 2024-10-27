@@ -318,80 +318,99 @@ const char *nl80211_chan_width_str(enum nl80211_chan_width cwidth)
 	};
 }
 
-void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef, u8 *ht, u8 *ch, u8 *bw, u8 *offset)
+void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef, 
+                                         u8 *ht, u8 *ch, u8 *bw, u8 *offset)
 {
-	int pri_freq;
-	struct ieee80211_channel *chan = chdef->chan;
+    struct ieee80211_channel *chan = chdef->chan;
 
-	pri_freq = rtw_ch2freq(chan->hw_value);
-	if (!pri_freq) {
-		RTW_INFO("invalid channel:%d\n", chan->hw_value);
-		rtw_warn_on(1);
-		*ch = 0;
-		return;
-	}		
+    // Validate the primary frequency for the channel
+    int pri_freq = rtw_ch2freq(chan->hw_value);
+    if (!pri_freq) {
+        RTW_WARN("Invalid channel: %d\n", chan->hw_value);
+        rtw_warn_on(1);
+        *ch = 0;
+        return;
+    }
 
-	switch (chdef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-		*ht = 0;
-		*bw = CHANNEL_WIDTH_20;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_20:
-		*ht = 1;
-		*bw = CHANNEL_WIDTH_20;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_40:
-		*ht = 1;
-		*bw = CHANNEL_WIDTH_40;
-		*offset = pri_freq > chdef->center_freq1 ? HAL_PRIME_CHNL_OFFSET_UPPER : HAL_PRIME_CHNL_OFFSET_LOWER;
-		if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset))
-			*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_80:
-		*ht = 1;
-		*bw = CHANNEL_WIDTH_80;
-		if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset))
-			*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_160:
-		*ht = 1;
-		*bw = CHANNEL_WIDTH_160;
-		if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset))
-			*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_80P80:
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
-	case NL80211_CHAN_WIDTH_5:
-	case NL80211_CHAN_WIDTH_10:
-	#endif
-	default:
-		*ht = 0;
-		*bw = CHANNEL_WIDTH_20;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		RTW_INFO("unsupported cwidth:%s\n", nl80211_chan_width_str(chdef->width));
-		rtw_warn_on(1);
-	};
-}
+    // Set the default channel value
+    *ch = chan->hw_value;
 
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
-static const char *nl80211_channel_type_str(enum nl80211_channel_type ctype)
-{
-	switch (ctype) {
-	case NL80211_CHAN_NO_HT:
-		return "NO_HT";
-	case NL80211_CHAN_HT20:
-		return "HT20";
-	case NL80211_CHAN_HT40MINUS:
-		return "HT40-";
-	case NL80211_CHAN_HT40PLUS:
-		return "HT40+";
-	default:
-		return "INVALID";
-	};
+    // Map the cfg80211 channel width to internal bandwidth and offset
+    switch (chdef->width) {
+        case NL80211_CHAN_WIDTH_20_NOHT:
+            *ht = 0;
+            *bw = CHANNEL_WIDTH_20;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            break;
+
+        case NL80211_CHAN_WIDTH_20:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_20;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            break;
+
+        case NL80211_CHAN_WIDTH_40:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_40;
+            *offset = (pri_freq > chdef->center_freq1) ? 
+                      HAL_PRIME_CHNL_OFFSET_UPPER : HAL_PRIME_CHNL_OFFSET_LOWER;
+
+            // Validate the offset using rtw_get_offset_by_chbw()
+            if (rtw_get_offset_by_chbw(*ch, *bw, offset)) {
+                *ch = chan->hw_value;
+            }
+            break;
+
+        case NL80211_CHAN_WIDTH_80:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_80;
+
+            // Validate the offset using rtw_get_offset_by_chbw()
+            if (rtw_get_offset_by_chbw(*ch, *bw, offset)) {
+                *ch = chan->hw_value;
+            }
+            break;
+
+        case NL80211_CHAN_WIDTH_160:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_160;
+
+            // Validate the offset using rtw_get_offset_by_chbw()
+            if (rtw_get_offset_by_chbw(*ch, *bw, offset)) {
+                *ch = chan->hw_value;
+            }
+            break;
+
+        case NL80211_CHAN_WIDTH_80P80:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_80_80;
+            break;
+
+        case NL80211_CHAN_WIDTH_5:
+            *ht = 0;
+            *bw = CHANNEL_WIDTH_5;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            break;
+
+        case NL80211_CHAN_WIDTH_10:
+            *ht = 0;
+            *bw = CHANNEL_WIDTH_10;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            break;
+
+        default:
+            // Handle unsupported channel widths gracefully
+            *ht = 0;
+            *bw = CHANNEL_WIDTH_20;  // Fallback to 20 MHz
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            RTW_WARN("Unsupported channel width: %u\n", chdef->width);
+            rtw_warn_on(1);
+            break;
+    }
+
+    // Log the final configuration for debugging
+    RTW_INFO("Configured channel: %d, BW: %u, Offset: %u, HT: %u\n", 
+             *ch, *bw, *offset, *ht);
 }
 
 static enum nl80211_channel_type rtw_chbw_to_nl80211_channel_type(u8 ch, u8 bw, u8 offset, u8 ht)
