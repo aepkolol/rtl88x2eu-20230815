@@ -992,15 +992,16 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
 
     // Log the initial state
     RTW_INFO("[%s] Entering channel switch function\n", __FUNCTION__);
-    RTW_INFO("Current channel: %d, Current BW: %d\n", 
+    RTW_INFO("Current channel: %d, BW: %d\n", 
              hal->current_channel, hal->current_channel_bw);
 
-    if (adapter->bNotifyChannelChange) {
-        RTW_INFO("[%s] Channel change notification - SwChnl: %d, SetChnlBW: %d\n",
-                 __FUNCTION__, hal->bSwChnl, hal->bSetChnlBW);
-    }
+#ifdef CONFIG_HAS_OFFSET_FIELD
+    RTW_INFO("Channel Offset: %d\n", hal->cur_ch_offset);
+#else
+    RTW_INFO("Channel Offset: Not available\n");
+#endif
 
-    // Check if adapter can perform operations
+    // Check if channel switching is possible
     if (RTW_CANNOT_RUN(adapter)) {
         RTW_WARN("Cannot perform channel switch. Adapter state invalid.\n");
         hal->bSwChnlAndSetBWInProgress = _FALSE;
@@ -1011,11 +1012,7 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
     switch_band = need_switch_band(adapter, hal->current_channel);
     RTW_INFO("Need to switch band: %d (0:No, 1:Yes)\n", switch_band);
 
-    // Log channel and bandwidth before switching
-    RTW_INFO("Switching to channel %d, BW %d, Offset %d\n", 
-             hal->current_channel, hal->current_channel_bw, hal->current_chnl_offset);
-
-    // Perform the channel switch using driver or firmware
+    // Perform the channel switch via driver or firmware
 #ifdef RTW_CHANNEL_SWITCH_OFFLOAD
     if (hal->ch_switch_offload) {
 #ifdef RTW_REDUCE_SCAN_SWITCH_CH_TIME
@@ -1025,7 +1022,7 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
         u8 drv_switch = _TRUE;
         int i;
 
-        // Check if any scan is in progress
+        // Check if any interfaces are scanning
         for (i = 0; i < dvobj->iface_nums; i++) {
             iface = dvobj->padapters[i];
             mlmeext = &iface->mlmeextpriv;
@@ -1051,11 +1048,15 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
     switch_chnl_and_set_bw_by_drv(adapter, switch_band);
 #endif
 
-    // Log post-switch settings
+    // Log the new state after switching
     RTW_INFO("Switched to channel %d, BW %d\n", 
              hal->current_channel, hal->current_channel_bw);
 
-    // Bluetooth coexistence configuration
+#ifdef CONFIG_HAS_OFFSET_FIELD
+    RTW_INFO("New Channel Offset: %d\n", hal->cur_ch_offset);
+#endif
+
+    // Handle Bluetooth coexistence if necessary
     if (switch_band) {
 #ifdef CONFIG_BT_COEXIST
         if (hal->EEPROMBluetoothCoexist) {
@@ -1073,19 +1074,19 @@ void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
 #endif
     }
 
-    // Configure power and perform calibration
+    // Configure power level and perform calibration
     phydm_config_kfree(p_dm_odm, hal->current_channel);
     odm_clear_txpowertracking_state(p_dm_odm);
     rtw_hal_set_tx_power_level(adapter, hal->current_channel);
 
-    // Log the need for IQ calibration
+    // Perform IQ calibration if needed
     if (hal->bNeedIQK == _TRUE || adapter->registrypriv.mp_mode == 1) {
         RTW_INFO("Performing IQ calibration.\n");
         rtw_phydm_iqk_trigger(adapter);
         hal->bNeedIQK = _FALSE;
     }
 
-    // Final log
+    // Final log to indicate completion
     RTW_INFO("[%s] Completed channel switch.\n", __FUNCTION__);
 }
 
