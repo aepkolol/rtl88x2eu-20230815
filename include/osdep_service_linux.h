@@ -159,9 +159,6 @@
  * refs/heads/common-android13-5.15-2023-04 (5.15.94)
  * refs/heads/android13-5.15-lts (5.15.106)
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 94) )
-        #define CONFIG_MLD_KERNEL_PATCH
-#endif
 
 typedef struct	semaphore _sema;
 typedef	spinlock_t	_lock;
