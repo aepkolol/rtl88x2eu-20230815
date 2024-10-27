@@ -7127,6 +7127,12 @@ static int cfg80211_rtw_set_monitor_channel(
     struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
     struct wireless_dev *wdev = padapter->rtw_wdev;
 
+    // Variable declarations (moved to the top)
+    u8 target_channel;
+    u8 target_bw;
+    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;  // Default offset
+    int ret;  // For return status
+
     // Sanity check for chandef and channel
     if (!chandef || !chandef->chan) {
         RTW_WARN("Invalid chandef or chandef->chan is NULL\n");
@@ -7140,10 +7146,8 @@ static int cfg80211_rtw_set_monitor_channel(
 
     mutex_lock(&wdev->mtx);  // Lock mutex for thread-safe operation
 
-    // Directly map the user's requested values from chandef
-    u8 target_channel = chandef->chan->hw_value;  // User-specified channel
-    u8 target_bw;  // Bandwidth based on chandef width
-    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;  // Default, may be updated
+    // Extract user-specified values
+    target_channel = chandef->chan->hw_value;  // User-specified channel
 
     // Map chandef width to internal bandwidth and offset
     switch (chandef->width) {
@@ -7196,13 +7200,11 @@ static int cfg80211_rtw_set_monitor_channel(
     mlmeext->cur_bwmode = target_bw;
     mlmeext->cur_ch_offset = target_offset;
 
-    // Apply configuration using the mapped values
-    int ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
+    // Apply configuration
+    ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
 
-    // Unlock mutex after applying the configuration
-    mutex_unlock(&wdev->mtx);
+    mutex_unlock(&wdev->mtx);  // Unlock mutex after applying configuration
 
-    // Check for errors and log the result
     if (ret) {
         RTW_WARN("Failed to set channel: %u, BW: %u, Offset: %u, Error: %d\n",
                  target_channel, target_bw, target_offset, ret);
