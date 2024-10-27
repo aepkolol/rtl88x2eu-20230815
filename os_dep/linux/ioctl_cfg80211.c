@@ -7095,7 +7095,7 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
             *ht = 0;
             *bw = CHANNEL_WIDTH_20;
             *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-            RTW_INFO("unsupported width: %s\n", nl80211_chan_width_str(chdef->width));
+            RTW_INFO("unsupported width: %s\n", chdef->width);
             rtw_warn_on(1);
             break;
     }
