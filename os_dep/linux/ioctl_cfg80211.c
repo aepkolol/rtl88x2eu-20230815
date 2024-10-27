@@ -272,33 +272,34 @@ static u8 rtw_chbw_to_cfg80211_chan_def(struct wiphy *wiphy,
     struct ieee80211_channel *chan;
     u8 ret = _FAIL;
 
-    // Clear the chandef structure before populating it
     _rtw_memset(chdef, 0, sizeof(*chdef));
 
-    freq = rtw_ch2freq(ch);  // Convert channel to frequency
+    freq = rtw_ch2freq(ch);
     if (!freq) {
         RTW_WARN("Invalid channel: %d\n", ch);
         goto exit;
     }
 
-    cfreq = rtw_get_center_ch(ch, bw, offset);  // Calculate center frequency
+    cfreq = rtw_get_center_ch(ch, bw, offset);
     if (!cfreq) {
         RTW_WARN("Failed to get center frequency for channel %d\n", ch);
         goto exit;
     }
-    cfreq = rtw_ch2freq(cfreq);  // Convert center channel to frequency
+    cfreq = rtw_ch2freq(cfreq);
     if (!cfreq) {
-        RTW_WARN("Invalid center frequency\n");
+        RTW_WARN("Invalid center frequency for cfreq %d\n", cfreq);
         goto exit;
     }
 
-    chan = ieee80211_get_channel(wiphy, freq);  // Get the ieee80211_channel struct
+    chan = ieee80211_get_channel(wiphy, freq);
     if (!chan) {
         RTW_WARN("Failed to get channel struct for freq %d\n", freq);
         goto exit;
     }
 
-    // Map internal bandwidth values to cfg80211 width
+    // Log current parameters
+    RTW_INFO("Channel: %d, BW: %u, HT: %u, Offset: %u\n", ch, bw, ht, offset);
+
     switch (bw) {
         case CHANNEL_WIDTH_20:
             chdef->width = ht ? NL80211_CHAN_WIDTH_20 : NL80211_CHAN_WIDTH_20_NOHT;
@@ -323,15 +324,16 @@ static u8 rtw_chbw_to_cfg80211_chan_def(struct wiphy *wiphy,
             goto exit;
     }
 
-    // Populate chandef fields
     chdef->chan = chan;
     chdef->center_freq1 = cfreq;
-    RTW_INFO("Configured chandef - Channel: %u, Width: %s, Center Freq1: %u\n",
-             ch, nl80211_chan_width_str(chdef->width), cfreq);
+
+    RTW_INFO("Configured chandef - Channel: %u, Width: %u, Center Freq1: %u\n",
+             ch, chdef->width, cfreq);
 
     ret = _SUCCESS;
 
 exit:
+    RTW_INFO("Exiting rtw_chbw_to_cfg80211_chan_def with status: %d\n", ret);
     return ret;
 }
 
@@ -4607,29 +4609,17 @@ static const char *nl80211_tx_power_setting_str(int type)
 #endif	/*	CONFIG_RTW_DEBUG	*/
 
 static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	struct wireless_dev *wdev,
-#endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
 	enum nl80211_tx_power_setting type, int mbm)
-#else
-	enum tx_power_setting type, int dbm)
-#endif
 {
-#if !((LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)))
 	int mbm = dbm * 100;
-#endif
-
 	struct rtw_wiphy_data *wiphy_data = rtw_wiphy_priv(wiphy);
 	_adapter *adapter = wiphy_to_adapter(wiphy);
 	int ret = -EOPNOTSUPP;
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	if (wdev) {
 		RTW_WARN(FUNC_WIPHY_FMT" wdev specific control is not supported\n", FUNC_WIPHY_ARG(wiphy));
 		goto exit;
 	}
-#endif
 
 	RTW_INFO(FUNC_WIPHY_FMT" type:%s(%u) mbm:%d\n", FUNC_WIPHY_ARG(wiphy)
 		, nl80211_tx_power_setting_str(type), type, mbm);
@@ -4679,9 +4669,7 @@ exit:
 }
 
 static int cfg80211_rtw_get_txpower(struct wiphy *wiphy,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	struct wireless_dev *wdev,
-#endif
 	int *dbm)
 {
 	struct dvobj_priv *dvobj = wiphy_to_dvobj(wiphy);
@@ -4692,13 +4680,11 @@ static int cfg80211_rtw_get_txpower(struct wiphy *wiphy,
 	if (override) {
 		*dbm = -(int)override;
 	} else {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 		if (wdev && wdev_to_ndev(wdev)) {
 			_adapter *adapter = (_adapter *)rtw_netdev_priv(wdev_to_ndev(wdev));
 			mbm = rtw_adapter_get_oper_txpwr_max_mbm(adapter, 1);
 			RTW_INFO(FUNC_ADPT_FMT" total max: %d mbm\n", FUNC_ADPT_ARG(adapter), mbm);
 		} else
-#endif
 		{
 			mbm = rtw_get_oper_txpwr_max_mbm(dvobj, 1);
 			RTW_INFO(FUNC_WIPHY_FMT" total max: %d mbm\n", FUNC_WIPHY_ARG(wiphy), mbm);
@@ -4708,7 +4694,6 @@ static int cfg80211_rtw_get_txpower(struct wiphy *wiphy,
 
 	return 0;
 }
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)) */
 
 inline bool rtw_cfg80211_pwr_mgmt(_adapter *adapter)
 {
