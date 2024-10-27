@@ -7127,36 +7127,82 @@ static int cfg80211_rtw_set_monitor_channel(
     struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
     struct wireless_dev *wdev = padapter->rtw_wdev;
 
+    // Sanity check for chandef and channel
+    if (!chandef || !chandef->chan) {
+        RTW_WARN("Invalid chandef or chandef->chan is NULL\n");
+        return -EINVAL;
+    }
+
     // Log chandef parameters
     RTW_INFO("Entering cfg80211_rtw_set_monitor_channel\n");
     RTW_INFO("chandef - Channel: %u, Width: %s, Center Freq1: %u MHz\n", 
              chandef->chan->hw_value, nl80211_chan_width_str(chandef->width), chandef->center_freq1);
 
-    mutex_lock(&wdev->mtx);  // Lock mutex
+    mutex_lock(&wdev->mtx);  // Lock mutex for thread-safe operation
 
-    // Extract channel and bandwidth
-    u8 target_channel = chandef->chan->hw_value;
-    u8 target_bw = CHANNEL_WIDTH_20;  // Default bandwidth
-    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+    // Directly map the user's requested values from chandef
+    u8 target_channel = chandef->chan->hw_value;  // User-specified channel
+    u8 target_bw;  // Bandwidth based on chandef width
+    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;  // Default, may be updated
 
+    // Map chandef width to internal bandwidth and offset
     switch (chandef->width) {
+        case NL80211_CHAN_WIDTH_20_NOHT:
+            target_bw = CHANNEL_WIDTH_20;
+            RTW_INFO("Setting 20 MHz no-HT mode\n");
+            break;
+        case NL80211_CHAN_WIDTH_20:
+            target_bw = CHANNEL_WIDTH_20;
+            RTW_INFO("Setting 20 MHz HT mode\n");
+            break;
         case NL80211_CHAN_WIDTH_40:
             target_bw = CHANNEL_WIDTH_40;
             target_offset = (chandef->center_freq1 > chandef->chan->center_freq) ?
-                            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+                            HAL_PRIME_CHNL_OFFSET_UPPER : HAL_PRIME_CHNL_OFFSET_LOWER;
+            RTW_INFO("Setting 40 MHz mode with offset %u\n", target_offset);
             break;
-        // Other cases similar to earlier logic
+        case NL80211_CHAN_WIDTH_80:
+            target_bw = CHANNEL_WIDTH_80;
+            RTW_INFO("Setting 80 MHz mode\n");
+            break;
+        case NL80211_CHAN_WIDTH_160:
+            target_bw = CHANNEL_WIDTH_160;
+            RTW_INFO("Setting 160 MHz mode\n");
+            break;
+        case NL80211_CHAN_WIDTH_80P80:
+            target_bw = CHANNEL_WIDTH_80_80;
+            RTW_INFO("Setting 80+80 MHz mode\n");
+            break;
+        case NL80211_CHAN_WIDTH_5:
+            target_bw = CHANNEL_WIDTH_5;
+            RTW_INFO("Setting 5 MHz mode\n");
+            break;
+        case NL80211_CHAN_WIDTH_10:
+            target_bw = CHANNEL_WIDTH_10;
+            RTW_INFO("Setting 10 MHz mode\n");
+            break;
+        default:
+            RTW_WARN("Unsupported channel width: %s\n", nl80211_chan_width_str(chandef->width));
+            mutex_unlock(&wdev->mtx);  // Unlock mutex before returning
+            return -EINVAL;
     }
+
+    // Log the mapped parameters
+    RTW_INFO("Mapped Parameters - Channel: %u, BW: %u, Offset: %u\n", 
+             target_channel, target_bw, target_offset);
 
     // Update internal state
     mlmeext->cur_channel = target_channel;
     mlmeext->cur_bwmode = target_bw;
     mlmeext->cur_ch_offset = target_offset;
 
-    // Apply configuration
+    // Apply configuration using the mapped values
     int ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
-    mutex_unlock(&wdev->mtx);  // Unlock mutex
 
+    // Unlock mutex after applying the configuration
+    mutex_unlock(&wdev->mtx);
+
+    // Check for errors and log the result
     if (ret) {
         RTW_WARN("Failed to set channel: %u, BW: %u, Offset: %u, Error: %d\n",
                  target_channel, target_bw, target_offset, ret);
@@ -7166,7 +7212,6 @@ static int cfg80211_rtw_set_monitor_channel(
     RTW_INFO("Successfully set monitor mode on channel %u\n", target_channel);
     return 0;
 }
-
 
 void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rframe)
 {
