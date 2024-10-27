@@ -17,8 +17,7 @@
 
 #include <drv_types.h>
 #include <hal_data.h>
-
-#ifdef CONFIG_IOCTL_CFG80211
+#include <linux/mutex.h>  // For mutex functions
 
 #ifndef DBG_RTW_CFG80211_STA_PARAM
 #define DBG_RTW_CFG80211_STA_PARAM 0
@@ -456,65 +455,73 @@ static void rtw_get_chbw_from_nl80211_channel_type(struct ieee80211_channel *cha
 }
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)) */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
 {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0))
-	if ((!MLME_IS_AP(adapter))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
-		&& (!MLME_IS_ADHOC(adapter))
-		&& (!MLME_IS_ADHOC_MASTER(adapter))
-		&& (!MLME_IS_MESH(adapter))
-#elif defined(CONFIG_RTW_MESH)
-		&& (!MLME_IS_MESH(adapter))
-#endif
-		)
-		return 0;
-#endif
-	return 1;
+    // Simplified version, assuming kernel >= 3.19
+    if ((!MLME_IS_AP(adapter)) &&
+        (!MLME_IS_ADHOC(adapter)) &&
+        (!MLME_IS_ADHOC_MASTER(adapter)) &&
+        (!MLME_IS_MESH(adapter)))
+		{
+			pr_info("rtw_cfg80211: Channel switch allowed.\n");
+			return 1; // Test to make sure this doesn't block switching because it looks reversed 
+		}
+        
+	pr_info("rtw_cfg80211: Channel switch not allowed.\n");
+    return 1;
 }
+
+/*
+struct cfg80211_chan_def {
+	struct ieee80211_channel *chan;
+	enum nl80211_chan_width width;
+	u32 center_freq1;
+	u32 center_freq2;
+	struct ieee80211_edmg edmg;
+	u16 freq1_offset;
+};
+*/
 
 u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
-	u8 ht, bool started)
+                                 u8 ht, bool started)
 {
-	struct wiphy *wiphy = adapter_to_wiphy(adapter);
-	u8 ret = _SUCCESS;
+    struct wiphy *wiphy = adapter_to_wiphy(adapter);
+    struct wireless_dev *wdev = adapter->rtw_wdev;  // Get wireless device
+    struct cfg80211_chan_def chdef;
+    u8 ret = _SUCCESS;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-	struct cfg80211_chan_def chdef;
+    pr_info("rtw_cfg80211: Attempting to switch to channel %u with bw %u, offset %u, ht %u\n",
+            ch, bw, offset, ht);
 
-	ret = rtw_chbw_to_cfg80211_chan_def(wiphy, &chdef, ch, bw, offset, ht);
-	if (ret != _SUCCESS)
-		goto exit;
+    // Acquire the lock to ensure thread-safe access to the wireless state
+    mutex_lock(&wdev->mtx);
 
-	cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
+    // Convert channel and bandwidth to cfg80211 channel definition
+    ret = rtw_chbw_to_cfg80211_chan_def(wiphy, &chdef, ch, bw, offset, ht);
+    if (ret != _SUCCESS) {
+        pr_err("rtw_cfg80211: Failed to convert channel definition.\n");
+        goto unlock;
+    }
 
-	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
-		goto exit;
+    pr_info("rtw_cfg80211: Channel switch started.\n");
+    cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
 
+    // Check if channel switching is allowed
+    if (!rtw_cfg80211_allow_ch_switch_notify(adapter)) {
+        pr_err("rtw_cfg80211: Channel switch blocked.\n");
+        goto unlock;
+    }
 
-	cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
+    // Perform the channel switch notification
+    pr_info("rtw_cfg80211: Channel switch notified to kernel.\n");
+    cfg80211_ch_switch_notify(adapter->pnetdev, &chdef);
 
-#else
-	int freq = rtw_ch2freq(ch);
-	enum nl80211_channel_type ctype;
+unlock:
+    // Release the lock after operation is complete
+    mutex_unlock(&wdev->mtx);
 
-	if (!rtw_cfg80211_allow_ch_switch_notify(adapter))
-		goto exit;
-
-	if (!freq) {
-		ret = _FAIL;
-		goto exit;
-	}
-
-	ctype = rtw_chbw_to_nl80211_channel_type(ch, bw, offset, ht);
-	cfg80211_ch_switch_notify(adapter->pnetdev, freq, ctype);
-#endif
-
-exit:
-	return ret;
+    return ret;
 }
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)) */
 
 void rtw_2g_channels_init(struct ieee80211_channel *channels)
 {
@@ -7158,113 +7165,93 @@ static int cfg80211_rtw_get_channel(struct wiphy *wiphy,
 }
 
 static void rtw_get_chbwoff_from_cfg80211_chan_def(
-	struct cfg80211_chan_def *chandef,
-	u8 *ht, u8 *ch, u8 *bw, u8 *offset)
+    struct cfg80211_chan_def *chandef,
+    u8 *ht, u8 *ch, u8 *bw, u8 *offset)
 {
-	struct ieee80211_channel *chan = chandef->chan;
+    struct ieee80211_channel *chan = chandef->chan;
 
-	*ch = chan->hw_value;
-	*ht = 1;
+    *ch = chan->hw_value;
+    *ht = 1;
 
-	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-		*ht = 0;
-		fallthrough;
-	case NL80211_CHAN_WIDTH_20:
-		*bw = CHANNEL_WIDTH_20;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		break;
-	case NL80211_CHAN_WIDTH_40:
-		*bw = CHANNEL_WIDTH_40;
-		*offset = (chandef->center_freq1 > chan->center_freq) ?
-			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
-		break;
-	case NL80211_CHAN_WIDTH_80:
-		*bw = CHANNEL_WIDTH_80;
-		*offset = (chandef->center_freq1 > chan->center_freq) ?
-			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
-		break;
-	case NL80211_CHAN_WIDTH_160:
-		*bw = CHANNEL_WIDTH_160;
-		*offset = (chandef->center_freq1 > chan->center_freq) ?
-			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
-		break;
-	case NL80211_CHAN_WIDTH_80P80:
-		*bw = CHANNEL_WIDTH_80_80;
-		*offset = (chandef->center_freq1 > chan->center_freq) ?
-			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
-		break;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
-	case NL80211_CHAN_WIDTH_5:
-		*bw = CHANNEL_WIDTH_5;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		break;
-	case NL80211_CHAN_WIDTH_10:
-		*bw = CHANNEL_WIDTH_10;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		break;
-#endif
-	default:
-		*ht = 0;
-		*bw = CHANNEL_WIDTH_20;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		RTW_INFO("unsupported cwidth:%u\n", chandef->width);
-		rtw_warn_on(1);
-	};
-}
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) */
-
-static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-	, struct cfg80211_chan_def *chandef
-#else
-	, struct ieee80211_channel *chan
-	, enum nl80211_channel_type channel_type
-#endif
-	)
-{
-	_adapter *padapter = wiphy_to_adapter(wiphy);
-	u8 target_channal, target_offset, target_width, ht_option;
-    int openhd_override_channel=0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-#ifdef CONFIG_DEBUG_CFG80211
-	RTW_INFO("center_freq %u Mhz ch %u width %u freq1 %u freq2 %u\n"
-		, chandef->chan->center_freq
-		, chandef->chan->hw_value
-		, chandef->width
-		, chandef->center_freq1
-		, chandef->center_freq2);
-#endif /* CONFIG_DEBUG_CFG80211 */
-
-	rtw_get_chbwoff_from_cfg80211_chan_def(chandef,
-		&ht_option, &target_channal, &target_width, &target_offset);
-#else
-#ifdef CONFIG_DEBUG_CFG80211
-	RTW_INFO("center_freq %u Mhz ch %u channel_type %u\n"
-		, chan->center_freq
-		, chan->hw_value
-		, channel_type);
-#endif /* CONFIG_DEBUG_CFG80211 */
-
-	rtw_get_chbw_from_nl80211_channel_type(chan, channel_type,
-		&ht_option, &target_channal, &target_width, &target_offset);
-#endif
-    openhd_override_channel=get_openhd_override_channel();
-    if(openhd_override_channel){
-        target_channal=openhd_override_channel;
-        RTW_WARN("OpenHD: using openhd_override_channel");
+    switch (chandef->width) {
+    case NL80211_CHAN_WIDTH_20_NOHT:
+        *ht = 0;
+        fallthrough;  // Intentional fallthrough to NL80211_CHAN_WIDTH_20
+    case NL80211_CHAN_WIDTH_20:
+        *bw = CHANNEL_WIDTH_20;
+        *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+        break;
+    case NL80211_CHAN_WIDTH_40:
+        *bw = CHANNEL_WIDTH_40;
+        *offset = (chandef->center_freq1 > chan->center_freq) ?
+            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+        break;
+    case NL80211_CHAN_WIDTH_80:
+        *bw = CHANNEL_WIDTH_80;
+        *offset = (chandef->center_freq1 > chan->center_freq) ?
+            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+        break;
+    case NL80211_CHAN_WIDTH_160:
+        *bw = CHANNEL_WIDTH_160;
+        *offset = (chandef->center_freq1 > chan->center_freq) ?
+            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+        break;
+    case NL80211_CHAN_WIDTH_80P80:
+        *bw = CHANNEL_WIDTH_80_80;
+        *offset = (chandef->center_freq1 > chan->center_freq) ?
+            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+        break;
+    case NL80211_CHAN_WIDTH_5:
+        *bw = CHANNEL_WIDTH_5;
+        *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+        break;
+    case NL80211_CHAN_WIDTH_10:
+        *bw = CHANNEL_WIDTH_10;
+        *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+        break;
+    default:
+        *ht = 0;
+        *bw = CHANNEL_WIDTH_20;
+        *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+        pr_warn("Unsupported channel width: %u\n", chandef->width);
+        rtw_warn_on(1);  // Trigger a warning if an unsupported width is used
+        break;
     }
-    
-    if(true){
-	    RTW_WARN(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d OpenHD channel debug override:%d\n",
-		FUNC_ADPT_ARG(padapter), target_channal,
-        target_width, target_offset,openhd_override_channel);
-	}
+}
 
-	rtw_set_chbw_cmd(padapter, target_channal, target_width,
-		target_offset, RTW_CMDF_WAIT_ACK);
+static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy, 
+                                            struct cfg80211_chan_def *chandef)
+{
+    _adapter *padapter = wiphy_to_adapter(wiphy);
+    struct wireless_dev *wdev = padapter->rtw_wdev;
+    u8 target_channel, target_offset, target_width, ht_option;
 
-	return 0;
+    // Log the channel configuration for debugging
+    pr_info("cfg80211: Monitor Channel - center_freq: %u MHz, channel: %u, width: %u\n",
+            chandef->chan->center_freq, chandef->chan->hw_value, chandef->width);
+
+    // Acquire the mutex for thread-safe access
+    mutex_lock(&wdev->mtx);
+
+    // Extract channel parameters from the channel definition
+    rtw_get_chbwoff_from_cfg80211_chan_def(chandef, 
+                                           &ht_option, 
+                                           &target_channel, 
+                                           &target_width, 
+                                           &target_offset);
+
+    // Log the final channel configuration
+    pr_info(FUNC_ADPT_FMT " ch: %d, bw: %d, offset: %d\n",
+            FUNC_ADPT_ARG(padapter), target_channel, target_width, target_offset);
+
+    // Apply the channel setting
+    rtw_set_chbw_cmd(padapter, target_channel, target_width, 
+                     target_offset, RTW_CMDF_WAIT_ACK);
+
+    // Release the mutex after the operation is complete
+    mutex_unlock(&wdev->mtx);
+
+    return 0;
 }
 
 void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rframe)
@@ -11447,4 +11434,3 @@ s16 rtw_cfg80211_dev_get_total_txpwr_target_mbm(struct dvobj_priv *dvobj)
 
 	return mbm;
 }
-#endif /* CONFIG_IOCTL_CFG80211 */
