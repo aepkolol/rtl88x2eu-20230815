@@ -1183,24 +1183,18 @@ void rtw_mi_set_mac_addr(_adapter *adapter)
 
 void rtw_init_hal_com_default_value(PADAPTER Adapter)
 {
-    PHAL_DATA_TYPE pHalData = GET_HAL_DATA(Adapter);
-    struct registry_priv *regsty = adapter_to_regsty(Adapter);
+	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
+	struct registry_priv *regsty = adapter_to_regsty(Adapter);
 
-    // Existing initializations
-    pHalData->AntDetection = 1;
-    pHalData->antenna_test = _FALSE;
-    pHalData->RegIQKFWOffload = regsty->iqk_fw_offload;
-    pHalData->ch_switch_offload = regsty->ch_switch_offload;
-    pHalData->multi_ch_switch_mode = 0;
-
+	pHalData->AntDetection = 1;
+	pHalData->antenna_test = _FALSE;
+	pHalData->RegIQKFWOffload = regsty->iqk_fw_offload;
+	pHalData->ch_switch_offload = regsty->ch_switch_offload;
+	pHalData->multi_ch_switch_mode = 0;
 #ifdef RTW_REDUCE_SCAN_SWITCH_CH_TIME
-    if (pHalData->ch_switch_offload == 0)
-        pHalData->ch_switch_offload = 1;
+	if (pHalData->ch_switch_offload == 0)
+		pHalData->ch_switch_offload = 1;
 #endif
-
-    // **New initializations for last_channel and last_bw**
-    pHalData->last_channel = 0;  // Initialize to 0 (or an invalid channel)
-    pHalData->last_bw = CHANNEL_WIDTH_20;  // Default to 20 MHz
 }
 
 #ifdef CONFIG_FW_C2H_REG

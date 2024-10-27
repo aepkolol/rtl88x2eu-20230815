@@ -335,8 +335,6 @@ typedef struct hal_com_data {
 	u8	bBTFWReady;
 	u8	fw_ractrl;
 	u8	LastHMEBoxNum;	/* H2C - for host message to fw */
-    u8 last_channel;
-	u8 last_bw;
 #ifdef CONFIG_LPS_1T1R
 	u8 lps_1t1r;
 #endif
