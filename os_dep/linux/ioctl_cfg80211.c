@@ -303,7 +303,7 @@ static u8 rtw_chbw_to_cfg80211_chan_def(struct wiphy *wiphy,
     chdef->chan = chan;
     chdef->center_freq1 = cfreq;
     RTW_INFO("Configured chandef - Channel: %u, Width: %s, Center Freq1: %u\n",
-             ch, nl80211_chan_width_str(chdef->width), cfreq);
+             ch, (chdef->width), cfreq);
 
     ret = _SUCCESS;
 
