@@ -4608,17 +4608,29 @@ static const char *nl80211_tx_power_setting_str(int type)
 #endif	/*	CONFIG_RTW_DEBUG	*/
 
 static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	struct wireless_dev *wdev,
+#endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)) || defined(COMPAT_KERNEL_RELEASE)
 	enum nl80211_tx_power_setting type, int mbm)
+#else
+	enum tx_power_setting type, int dbm)
+#endif
 {
+#if !((LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)) || defined(COMPAT_KERNEL_RELEASE))
 	int mbm = dbm * 100;
+#endif
+
 	struct rtw_wiphy_data *wiphy_data = rtw_wiphy_priv(wiphy);
 	_adapter *adapter = wiphy_to_adapter(wiphy);
 	int ret = -EOPNOTSUPP;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	if (wdev) {
 		RTW_WARN(FUNC_WIPHY_FMT" wdev specific control is not supported\n", FUNC_WIPHY_ARG(wiphy));
 		goto exit;
 	}
+#endif
 
 	RTW_INFO(FUNC_WIPHY_FMT" type:%s(%u) mbm:%d\n", FUNC_WIPHY_ARG(wiphy)
 		, nl80211_tx_power_setting_str(type), type, mbm);
