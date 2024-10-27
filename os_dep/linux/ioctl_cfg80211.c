@@ -7104,52 +7104,100 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
              *ch, *bw, *offset, *ht);
 }
 
-static int cfg80211_rtw_set_monitor_channel(
-    struct wiphy *wiphy, 
-    struct cfg80211_chan_def *chandef)
+static void rtw_get_chbwoff_from_cfg80211_chan_def(
+	struct cfg80211_chan_def *chandef,
+	u8 *ht, u8 *ch, u8 *bw, u8 *offset)
 {
-    _adapter *padapter = wiphy_to_adapter(wiphy);
-    struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
+	struct ieee80211_channel *chan = chandef->chan;
+
+	*ch = chan->hw_value;
+	*ht = 1;
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		*ht = 0;
+		fallthrough;
+	case NL80211_CHAN_WIDTH_20:
+		*bw = CHANNEL_WIDTH_20;
+		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		*bw = CHANNEL_WIDTH_40;
+		*offset = (chandef->center_freq1 > chan->center_freq) ?
+			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		*bw = CHANNEL_WIDTH_80;
+		*offset = (chandef->center_freq1 > chan->center_freq) ?
+			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		*bw = CHANNEL_WIDTH_160;
+		*offset = (chandef->center_freq1 > chan->center_freq) ?
+			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		*bw = CHANNEL_WIDTH_80_80;
+		*offset = (chandef->center_freq1 > chan->center_freq) ?
+			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		break;
+	case NL80211_CHAN_WIDTH_5:
+		*bw = CHANNEL_WIDTH_5;
+		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		*bw = CHANNEL_WIDTH_10;
+		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		break;
+	default:
+		*ht = 0;
+		*bw = CHANNEL_WIDTH_20;
+		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		RTW_INFO("unsupported cwidth:%u\n", chandef->width);
+		rtw_warn_on(1);
+	};
+}
+
+static int cfg80211_rtw_set_monitor_channel(
+	struct wiphy *wiphy, 
+	struct cfg80211_chan_def *chandef)
+{
+	_adapter *padapter = wiphy_to_adapter(wiphy);
+	struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
     struct wireless_dev *wdev = padapter->rtw_wdev;
 
-    // Log chandef parameters
-    RTW_INFO("Entering cfg80211_rtw_set_monitor_channel\n");
-    RTW_INFO("chandef - Channel: %u, Width: %u, Center Freq1: %u MHz, Center Freq2: %u MHz, Offset: %u\n", 
-             chandef->chan->hw_value, chandef->width, chandef->center_freq1, chandef->center_freq2, chandef->freq1_offset);
+	// Variables
+	u8 ht_option;
+	u8 target_channel; 
+	u8 target_bw;
+	u8 target_offset;
 
-    mutex_lock(&wdev->mtx);  // Lock mutex
+	// Log input
+	RTW_INFO("Entering cfg80211_rtw_set_monitor_channel\n");
+    RTW_INFO("chandef - HT: %u Channel: %u, Width: %u, Center Freq1: %u MHz, Center Freq2: %u MHz, Offset: %u\n", 
+             ht_option, chandef->chan->hw_value, chandef->width, chandef->center_freq1, chandef->center_freq2, chandef->freq1_offset);
 
-    // Extract channel and bandwidth
-    u8 target_channel = chandef->chan->hw_value;
-    u8 target_bw = CHANNEL_WIDTH_20;  // Default bandwidth
-    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+	mutex_lock(&wdev->mtx);  // Lock mutex
 
-    switch (chandef->width) {
-        case NL80211_CHAN_WIDTH_40:
-            target_bw = CHANNEL_WIDTH_40;
-            target_offset = (chandef->center_freq1 > chandef->chan->center_freq) ?
-                            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
-            break;
-        // Other cases similar to earlier logic
-    }
+	rtw_get_chbwoff_from_cfg80211_chan_def(chandef,
+		&ht_option, &target_channel, &target_bw, &target_offset);
 
-    // Update internal state
+	// Update internal state
     mlmeext->cur_channel = target_channel;
     mlmeext->cur_bwmode = target_bw;
     mlmeext->cur_ch_offset = target_offset;
 
-    // Apply configuration
-    int ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
-    mutex_unlock(&wdev->mtx);  // Unlock mutex
+	// Apply channel
+	int ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
+	mutex_unlock(&wdev->mtx);  // Unlock mutex
 
-    if (ret) {
+	if (ret) {
         RTW_WARN("Failed to set channel: %u, BW: %u, Offset: %u, Error: %d\n",
                  target_channel, target_bw, target_offset, ret);
         return -EOPNOTSUPP;
     }
-
-    RTW_INFO("Successfully set monitor mode on channel %u\n", target_channel);
-    return 0;
+	 RTW_INFO("Successfully set monitor mode on channel %u\n", target_channel);
+	return 0;
 }
 
 
