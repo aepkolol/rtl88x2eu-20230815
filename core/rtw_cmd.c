@@ -1798,70 +1798,76 @@ exit:
 
 u8 rtw_set_chbw_cmd(_adapter *padapter, u8 ch, u8 bw, u8 ch_offset, u8 flags)
 {
-	struct cmd_obj *pcmdobj;
-	struct set_ch_parm *set_ch_parm;
-	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-	struct submit_ctx sctx;
-	u8 res = _SUCCESS;
+    struct cmd_obj *pcmdobj;
+    struct set_ch_parm *set_ch_parm;
+    struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
+    struct submit_ctx sctx;
+    u8 res = _SUCCESS;
 
+    RTW_INFO(FUNC_NDEV_FMT" ch:%u, bw:%u, ch_offset:%u\n",
+             FUNC_NDEV_ARG(padapter->pnetdev), ch, bw, ch_offset);
 
-	RTW_INFO(FUNC_NDEV_FMT" ch:%u, bw:%u, ch_offset:%u\n",
-		 FUNC_NDEV_ARG(padapter->pnetdev), ch, bw, ch_offset);
+    // Input validation
+    if (ch < 1 || ch > 165 || bw > CHANNEL_WIDTH_80_80) {
+        RTW_WARN("Invalid input: ch=%u, bw=%u\n", ch, bw);
+        return _FAIL;
+    }
 
-	/* check input parameter */
+    // Allocate memory for command parameters
+    set_ch_parm = (struct set_ch_parm *)rtw_zmalloc(sizeof(*set_ch_parm));
+    if (set_ch_parm == NULL) {
+        RTW_WARN("Memory allocation for set_ch_parm failed\n");
+        res = _FAIL;
+        goto exit;
+    }
+    set_ch_parm->ch = ch;
+    set_ch_parm->bw = bw;
+    set_ch_parm->ch_offset = ch_offset;
 
-	/* prepare cmd parameter */
-	set_ch_parm = (struct set_ch_parm *)rtw_zmalloc(sizeof(*set_ch_parm));
-	if (set_ch_parm == NULL) {
-		res = _FAIL;
-		goto exit;
-	}
-	set_ch_parm->ch = ch;
-	set_ch_parm->bw = bw;
-	set_ch_parm->ch_offset = ch_offset;
+    if (flags & RTW_CMDF_DIRECTLY) {
+        if (H2C_SUCCESS != rtw_set_chbw_hdl(padapter, (u8 *)set_ch_parm)) {
+            RTW_WARN("rtw_set_chbw_hdl failed: ch=%u, bw=%u, offset=%u\n",
+                     ch, bw, ch_offset);
+            res = _FAIL;
+        }
+        rtw_mfree((u8 *)set_ch_parm, sizeof(*set_ch_parm));
+    } else {
+        pcmdobj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+        if (pcmdobj == NULL) {
+            rtw_mfree((u8 *)set_ch_parm, sizeof(*set_ch_parm));
+            RTW_WARN("Memory allocation for cmd_obj failed\n");
+            res = _FAIL;
+            goto exit;
+        }
 
-	if (flags & RTW_CMDF_DIRECTLY) {
-		/* no need to enqueue, do the cmd hdl directly and free cmd parameter */
-		if (H2C_SUCCESS != rtw_set_chbw_hdl(padapter, (u8 *)set_ch_parm))
-			res = _FAIL;
+        init_h2fwcmd_w_parm_no_rsp(pcmdobj, set_ch_parm, CMD_SET_CHANNEL);
 
-		rtw_mfree((u8 *)set_ch_parm, sizeof(*set_ch_parm));
-	} else {
-		/* need enqueue, prepare cmd_obj and enqueue */
-		pcmdobj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct	cmd_obj));
-		if (pcmdobj == NULL) {
-			rtw_mfree((u8 *)set_ch_parm, sizeof(*set_ch_parm));
-			res = _FAIL;
-			goto exit;
-		}
+        if (flags & RTW_CMDF_WAIT_ACK) {
+            pcmdobj->sctx = &sctx;
+            rtw_sctx_init(&sctx, 10 * 1000);
+        }
 
-		init_h2fwcmd_w_parm_no_rsp(pcmdobj, set_ch_parm, CMD_SET_CHANNEL);
+        res = rtw_enqueue_cmd(pcmdpriv, pcmdobj);
 
-		if (flags & RTW_CMDF_WAIT_ACK) {
-			pcmdobj->sctx = &sctx;
-			rtw_sctx_init(&sctx, 10 * 1000);
-		}
+        if (res == _SUCCESS && (flags & RTW_CMDF_WAIT_ACK)) {
+            RTW_INFO("Waiting for ACK on ch=%u, bw=%u, offset=%u\n", ch, bw, ch_offset);
+            rtw_sctx_wait(&sctx, __func__);
 
-		res = rtw_enqueue_cmd(pcmdpriv, pcmdobj);
-
-		if (res == _SUCCESS && (flags & RTW_CMDF_WAIT_ACK)) {
-			rtw_sctx_wait(&sctx, __func__);
-			_enter_critical_mutex(&pcmdpriv->sctx_mutex, NULL);
-			if (sctx.status == RTW_SCTX_SUBMITTED)
-				pcmdobj->sctx = NULL;
-			_exit_critical_mutex(&pcmdpriv->sctx_mutex, NULL);
-		}
-	}
-
-	/* do something based on res... */
+            _enter_critical_mutex(&pcmdpriv->sctx_mutex, NULL);
+            if (sctx.status == RTW_SCTX_SUBMITTED) {
+                RTW_WARN("Command timeout: ch=%u, bw=%u, offset=%u\n", ch, bw, ch_offset);
+                pcmdobj->sctx = NULL;
+            }
+            _exit_critical_mutex(&pcmdpriv->sctx_mutex, NULL);
+        }
+    }
 
 exit:
-
-	RTW_INFO(FUNC_NDEV_FMT" res:%u\n", FUNC_NDEV_ARG(padapter->pnetdev), res);
-
-
-	return res;
+    RTW_INFO("Command result: %u (Channel: %u, BW: %u, Offset: %u)\n", 
+             res, ch, bw, ch_offset);
+    return res;
 }
+
 
 #ifdef CONFIG_RTW_LED_HANDLED_BY_CMD_THREAD
 u8 rtw_led_blink_cmd(_adapter *padapter, void *pLed)
