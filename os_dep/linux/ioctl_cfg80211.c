@@ -7200,8 +7200,7 @@ static int cfg80211_rtw_set_monitor_channel(
 
 	// Apply channel
 	RTW_INFO(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d\n",
-		FUNC_ADPT_ARG(padapter), target_channal,
-		target_width, target_offset);
+	FUNC_ADPT_ARG(padapter), target_channel, target_bw, target_offset);
 
 	int ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
 	mutex_unlock(&wdev->mtx);  // Unlock mutex
