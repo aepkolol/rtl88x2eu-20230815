@@ -7353,7 +7353,7 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 		target_width, target_offset);
 
 	rtw_set_chbw_cmd(padapter, target_channel, target_width, target_offset, RTW_CMDF_WAIT_ACK);
-
+	mutex_unlock(&wdev->mtx);  // Unlock mutex
 	return 0;
 }
 
