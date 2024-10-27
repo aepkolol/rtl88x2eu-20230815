@@ -7202,15 +7202,10 @@ static int cfg80211_rtw_set_monitor_channel(
 	RTW_INFO(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d\n",
 	FUNC_ADPT_ARG(padapter), target_channel, target_bw, target_offset);
 
-	int ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
+	rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
 	mutex_unlock(&wdev->mtx);  // Unlock mutex
 
-	if (ret) {
-        RTW_WARN("Failed to set channel: %u, BW: %u, Offset: %u, Error: %d\n",
-                 target_channel, target_bw, target_offset, ret);
-        return -EOPNOTSUPP;
-    }
-	 RTW_INFO("Successfully set monitor mode on channel %u\n", target_channel);
+	 ("Successfully set monitor mode on channel %u\n", target_channel);
 	return 0;
 }
 
