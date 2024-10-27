@@ -7175,58 +7175,66 @@ static int cfg80211_rtw_get_channel(struct wiphy *wiphy,
 }
 
 static void rtw_get_chbwoff_from_cfg80211_chan_def(
-    struct cfg80211_chan_def *chandef,
-    u8 *ht, u8 *ch, u8 *bw, u8 *offset)
+    struct cfg80211_chan_def *chandef, u8 *ht, u8 *ch, u8 *bw, u8 *offset)
 {
     struct ieee80211_channel *chan = chandef->chan;
 
-    *ch = chan->hw_value;
-    *ht = 1;
+    *ch = chan->hw_value;  // Channel number
+    *ht = 1;               // Assume HT (high throughput) by default
+
+    RTW_INFO("Extracting channel: %u, width: %u, center_freq1: %u, center_freq2: %u, offset: %u\n",
+             *ch, chandef->width, chandef->center_freq1, chandef->center_freq2, chandef->freq1_offset);
 
     switch (chandef->width) {
     case NL80211_CHAN_WIDTH_20_NOHT:
-        *ht = 0;
-        fallthrough;  // Intentional fallthrough to NL80211_CHAN_WIDTH_20
+        *ht = 0;  // Disable HT for non-HT 20 MHz
+        fallthrough;
     case NL80211_CHAN_WIDTH_20:
         *bw = CHANNEL_WIDTH_20;
         *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
         break;
+
     case NL80211_CHAN_WIDTH_40:
         *bw = CHANNEL_WIDTH_40;
         *offset = (chandef->center_freq1 > chan->center_freq) ?
-            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+                  HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
         break;
+
     case NL80211_CHAN_WIDTH_80:
         *bw = CHANNEL_WIDTH_80;
         *offset = (chandef->center_freq1 > chan->center_freq) ?
-            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+                  HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
         break;
+
     case NL80211_CHAN_WIDTH_160:
         *bw = CHANNEL_WIDTH_160;
         *offset = (chandef->center_freq1 > chan->center_freq) ?
-            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+                  HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
         break;
+
     case NL80211_CHAN_WIDTH_80P80:
         *bw = CHANNEL_WIDTH_80_80;
-        *offset = (chandef->center_freq1 > chan->center_freq) ?
-            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+        *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;  // No offset in 80+80 MHz
         break;
+
     case NL80211_CHAN_WIDTH_5:
         *bw = CHANNEL_WIDTH_5;
         *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
         break;
+
     case NL80211_CHAN_WIDTH_10:
         *bw = CHANNEL_WIDTH_10;
         *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
         break;
+
     default:
-        *ht = 0;
-        *bw = CHANNEL_WIDTH_20;
+        RTW_WARN("Unsupported channel width: %u\n", chandef->width);
+        *ht = 0;  // Disable HT
+        *bw = CHANNEL_WIDTH_20;  // Default to 20 MHz
         *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-        pr_warn("Unsupported channel width: %u\n", chandef->width);
-        rtw_warn_on(1);  // Trigger a warning if an unsupported width is used
-        break;
     }
+
+    RTW_INFO("Channel set: %u, BW: %u, Offset: %u\n", *ch, *bw, *offset);
 }
 
 static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy, 
