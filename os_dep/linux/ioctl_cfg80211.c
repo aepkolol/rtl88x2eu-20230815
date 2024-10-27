@@ -7116,38 +7116,46 @@ static void rtw_get_chbwoff_from_cfg80211_chan_def(
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		*ht = 0;
+		RTW_INFO("Detected 20 MHz NOHT mode\n");
 		fallthrough;
 	case NL80211_CHAN_WIDTH_20:
 		*bw = CHANNEL_WIDTH_20;
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		RTW_INFO("Setting 20 MHz width, HT: %u\n", *ht);
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		*bw = CHANNEL_WIDTH_40;
 		*offset = (chandef->center_freq1 > chan->center_freq) ?
 			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		RTW_INFO("Setting 40 MHz width, Offset: %u\n", *offset);
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		*bw = CHANNEL_WIDTH_80;
 		*offset = (chandef->center_freq1 > chan->center_freq) ?
 			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		RTW_INFO("Setting 80 MHz width\n");
 		break;
 	case NL80211_CHAN_WIDTH_160:
 		*bw = CHANNEL_WIDTH_160;
 		*offset = (chandef->center_freq1 > chan->center_freq) ?
 			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		RTW_INFO("Setting 160 MHz width\n");
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
 		*bw = CHANNEL_WIDTH_80_80;
 		*offset = (chandef->center_freq1 > chan->center_freq) ?
 			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		RTW_INFO("Setting 80/80 MHz width\n");
 		break;
 	case NL80211_CHAN_WIDTH_5:
 		*bw = CHANNEL_WIDTH_5;
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		RTW_INFO("Setting 5 MHz width\n");
 		break;
 	case NL80211_CHAN_WIDTH_10:
 		*bw = CHANNEL_WIDTH_10;
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		RTW_INFO("Setting 10 MHz width\n");
 		break;
 	default:
 		*ht = 0;
@@ -7156,6 +7164,9 @@ static void rtw_get_chbwoff_from_cfg80211_chan_def(
 		RTW_INFO("unsupported cwidth:%u\n", chandef->width);
 		rtw_warn_on(1);
 	};
+	// Log final extracted parameters
+    RTW_INFO("Extracted - Channel: %u, BW: %u, Offset: %u, HT: %u\n", 
+             *ch, *bw, *offset, *ht);
 }
 
 static int cfg80211_rtw_set_monitor_channel(
@@ -7167,15 +7178,15 @@ static int cfg80211_rtw_set_monitor_channel(
     struct wireless_dev *wdev = padapter->rtw_wdev;
 
 	// Variables
-	u8 ht_option;
 	u8 target_channel; 
 	u8 target_bw;
 	u8 target_offset;
+	u8 ht_option;
 
 	// Log input
 	RTW_INFO("Entering cfg80211_rtw_set_monitor_channel\n");
-    RTW_INFO("chandef - HT: %u Channel: %u, Width: %u, Center Freq1: %u MHz, Center Freq2: %u MHz, Offset: %u\n", 
-             ht_option, chandef->chan->hw_value, chandef->width, chandef->center_freq1, chandef->center_freq2, chandef->freq1_offset);
+    RTW_INFO("chandef - Channel: %u, Width: %u, Center Freq1: %u MHz, Center Freq2: %u MHz, Offset: %u\n", 
+          chandef->chan->hw_value, chandef->width, chandef->center_freq1, chandef->center_freq2, chandef->freq1_offset);
 
 	mutex_lock(&wdev->mtx);  // Lock mutex
 
@@ -7188,6 +7199,10 @@ static int cfg80211_rtw_set_monitor_channel(
     mlmeext->cur_ch_offset = target_offset;
 
 	// Apply channel
+	RTW_INFO(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d\n",
+		FUNC_ADPT_ARG(padapter), target_channal,
+		target_width, target_offset);
+
 	int ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
 	mutex_unlock(&wdev->mtx);  // Unlock mutex
 
@@ -7199,7 +7214,6 @@ static int cfg80211_rtw_set_monitor_channel(
 	 RTW_INFO("Successfully set monitor mode on channel %u\n", target_channel);
 	return 0;
 }
-
 
 void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rframe)
 {
