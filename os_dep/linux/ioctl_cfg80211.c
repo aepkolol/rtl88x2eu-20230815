@@ -7243,16 +7243,16 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy,
     struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
     struct wireless_dev *wdev = padapter->rtw_wdev;
 
-    // Extract channel, bandwidth, and offset from chandef
+    // Extract user-specified values from chandef
     u8 target_channel = chandef->chan->hw_value;
-    u8 target_bw = CHANNEL_WIDTH_20;  // Default to 20 MHz
-    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+    u8 target_bw;
+    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;  // Default
 
     // Log the received configuration
     RTW_INFO("Monitor Channel - center_freq: %u MHz, channel: %u, width: %u\n",
              chandef->center_freq1, target_channel, chandef->width);
 
-    // Map nl80211 channel width to internal bandwidth values
+    // Map nl80211 width to internal bandwidth values based on user input
     switch (chandef->width) {
         case NL80211_CHAN_WIDTH_20_NOHT:
             target_bw = CHANNEL_WIDTH_20;
@@ -7282,13 +7282,13 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy,
             break;
         default:
             RTW_WARN("Unsupported channel width: %u\n", chandef->width);
-            target_bw = CHANNEL_WIDTH_20;  // Default to 20 MHz
+            return -EINVAL;  // Abort if unsupported width is provided
     }
 
     // Lock the mutex to ensure thread-safe access
     mutex_lock(&wdev->mtx);
 
-    // Update internal driver state with the new channel configuration
+    // Update internal driver state with the user-specified configuration
     mlmeext->cur_channel = target_channel;
     mlmeext->cur_bwmode = target_bw;
     mlmeext->cur_ch_offset = target_offset;
