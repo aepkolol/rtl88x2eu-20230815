@@ -7095,7 +7095,7 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
             *ht = 0;
             *bw = CHANNEL_WIDTH_20;
             *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-            RTW_INFO("unsupported width: %s\n", nl80211_chan_width_str(chdef->width));
+            RTW_INFO("unsupported width: %s\n", chdef->width);
             rtw_warn_on(1);
             break;
     }
@@ -7114,8 +7114,8 @@ static int cfg80211_rtw_set_monitor_channel(
 
     // Log chandef parameters
     RTW_INFO("Entering cfg80211_rtw_set_monitor_channel\n");
-    RTW_INFO("chandef - Channel: %u, Width: %s, Center Freq1: %u MHz\n", 
-             chandef->chan->hw_value, nl80211_chan_width_str(chandef->width), chandef->center_freq1);
+    RTW_INFO("chandef - Channel: %u, Width: %u, Center Freq1: %u MHz, Center Freq2: %u MHz, Offset: %u\n", 
+             chandef->chan->hw_value, chandef->width, chandef->center_freq1, chandef->center_freq2, chandef->freq1_offset);
 
     mutex_lock(&wdev->mtx);  // Lock mutex
 
