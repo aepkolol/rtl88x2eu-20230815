@@ -7113,100 +7113,30 @@ void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
              *ch, *bw, *offset, *ht);
 }
 
-static int cfg80211_rtw_set_monitor_channel(
-    struct wiphy *wiphy, 
-    struct cfg80211_chan_def *chandef)
+static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
+	, struct cfg80211_chan_def *chandef
+	)
 {
-    _adapter *padapter = wiphy_to_adapter(wiphy);
-    struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
-    struct wireless_dev *wdev = padapter->rtw_wdev;
+	_adapter *padapter = wiphy_to_adapter(wiphy);
+	u8 target_channal, target_offset, target_width, ht_option;
 
-    // Variable declarations (moved to the top)
-    u8 target_channel;
-    u8 target_bw;
-    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;  // Default offset
-    int ret;  // For return status
+	RTW_INFO("center_freq %u Mhz ch %u width %u freq1 %u freq2 %u\n"
+		, chandef->chan->center_freq
+		, chandef->chan->hw_value
+		, chandef->width
+		, chandef->center_freq1
+		, chandef->center_freq2);
+	rtw_get_chbwoff_from_cfg80211_chan_def(chandef,
+		&ht_option, &target_channal, &target_width, &target_offset);
 
-    // Sanity check for chandef and channel
-    if (!chandef || !chandef->chan) {
-        RTW_WARN("Invalid chandef or chandef->chan is NULL\n");
-        return -EINVAL;
-    }
+	RTW_INFO(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d\n",
+		FUNC_ADPT_ARG(padapter), target_channal,
+		target_width, target_offset);
 
-    // Log chandef parameters
-    RTW_INFO("Entering cfg80211_rtw_set_monitor_channel\n");
-    RTW_INFO("chandef - Channel: %u, Width: %u, Center Freq1: %u MHz, Center Freq2: %u MHz, Offset: %u\n", 
-             chandef->chan->hw_value, chandef->width, chandef->center_freq1, chandef->center_freq2, chandef->freq1_offset);
+	rtw_set_chbw_cmd(padapter, target_channal, target_width,
+		target_offset, RTW_CMDF_WAIT_ACK);
 
-    mutex_lock(&wdev->mtx);  // Lock mutex for thread-safe operation
-
-    // Extract user-specified values
-    target_channel = chandef->chan->hw_value;  // User-specified channel
-
-    // Map chandef width to internal bandwidth and offset
-    switch (chandef->width) {
-        case NL80211_CHAN_WIDTH_20_NOHT:
-            target_bw = CHANNEL_WIDTH_20;
-            RTW_INFO("Setting 20 MHz no-HT mode\n");
-            break;
-        case NL80211_CHAN_WIDTH_20:
-            target_bw = CHANNEL_WIDTH_20;
-            RTW_INFO("Setting 20 MHz HT mode\n");
-            break;
-        case NL80211_CHAN_WIDTH_40:
-            target_bw = CHANNEL_WIDTH_40;
-            target_offset = (chandef->center_freq1 > chandef->chan->center_freq) ?
-                            HAL_PRIME_CHNL_OFFSET_UPPER : HAL_PRIME_CHNL_OFFSET_LOWER;
-            RTW_INFO("Setting 40 MHz mode with offset %u\n", target_offset);
-            break;
-        case NL80211_CHAN_WIDTH_80:
-            target_bw = CHANNEL_WIDTH_80;
-            RTW_INFO("Setting 80 MHz mode\n");
-            break;
-        case NL80211_CHAN_WIDTH_160:
-            target_bw = CHANNEL_WIDTH_160;
-            RTW_INFO("Setting 160 MHz mode\n");
-            break;
-        case NL80211_CHAN_WIDTH_80P80:
-            target_bw = CHANNEL_WIDTH_80_80;
-            RTW_INFO("Setting 80+80 MHz mode\n");
-            break;
-        case NL80211_CHAN_WIDTH_5:
-            target_bw = CHANNEL_WIDTH_5;
-            RTW_INFO("Setting 5 MHz mode\n");
-            break;
-        case NL80211_CHAN_WIDTH_10:
-            target_bw = CHANNEL_WIDTH_10;
-            RTW_INFO("Setting 10 MHz mode\n");
-            break;
-        default:
-            RTW_WARN("Unsupported channel width: %s\n", chandef->width);
-            mutex_unlock(&wdev->mtx);  // Unlock mutex before returning
-            return -EINVAL;
-    }
-
-    // Log the mapped parameters
-    RTW_INFO("Mapped Parameters - Channel: %u, BW: %u, Offset: %u\n", 
-             target_channel, target_bw, target_offset);
-
-    // Update internal state
-    mlmeext->cur_channel = target_channel;
-    mlmeext->cur_bwmode = target_bw;
-    mlmeext->cur_ch_offset = target_offset;
-
-    // Apply configuration
-    ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
-
-    mutex_unlock(&wdev->mtx);  // Unlock mutex after applying configuration
-
-    if (ret) {
-        RTW_WARN("Failed to set channel: %u, BW: %u, Offset: %u, Error: %d\n",
-                 target_channel, target_bw, target_offset, ret);
-        return -EOPNOTSUPP;
-    }
-
-    RTW_INFO("Successfully set monitor mode on channel %u\n", target_channel);
-    return 0;
+	return 0;
 }
 
 void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rframe)
