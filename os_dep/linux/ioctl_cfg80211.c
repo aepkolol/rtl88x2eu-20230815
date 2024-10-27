@@ -445,11 +445,10 @@ static void rtw_get_chbw_from_nl80211_channel_type(struct ieee80211_channel *cha
 		*ht = 0;
 		*bw = CHANNEL_WIDTH_20;
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		RTW_INFO("unsupported ctype:%s\n", nl80211_channel_type_str(ctype));
+		RTW_INFO("unsupported width: %s\n", nl80211_chan_width_str(chdef->width));
 		rtw_warn_on(1);
 	};
 }
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)) */
 
 bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
 {
