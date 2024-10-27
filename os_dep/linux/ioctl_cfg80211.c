@@ -240,159 +240,155 @@ BAND_TYPE _nl80211_band_to_rtw_band[] = {
 
 static int rtw_cfg80211_set_assocresp_ies(struct net_device *net, const u8 *buf, int len);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-static u8 rtw_chbw_to_cfg80211_chan_def(struct wiphy *wiphy, struct cfg80211_chan_def *chdef, u8 ch, u8 bw, u8 offset, u8 ht)
+static u8 rtw_chbw_to_cfg80211_chan_def(struct wiphy *wiphy, 
+                                        struct cfg80211_chan_def *chdef, 
+                                        u8 ch, u8 bw, u8 offset, u8 ht) 
 {
-	int freq, cfreq;
-	struct ieee80211_channel *chan;
-	u8 ret = _FAIL;
+    int freq, cfreq;
+    struct ieee80211_channel *chan;
+    u8 ret = _FAIL;
 
-	_rtw_memset(chdef, 0, sizeof(*chdef));
+    // Initialize channel definition structure
+    _rtw_memset(chdef, 0, sizeof(*chdef));
 
-	freq = rtw_ch2freq(ch);
-	if (!freq)
-		goto exit;
+    freq = rtw_ch2freq(ch);
+    if (!freq) goto exit;
 
-	cfreq = rtw_get_center_ch(ch, bw, offset);
-	if (!cfreq)
-		goto exit;
-	cfreq = rtw_ch2freq(cfreq);
-	if (!cfreq)
-		goto exit;
+    cfreq = rtw_get_center_ch(ch, bw, offset);
+    if (!cfreq) goto exit;
 
-	chan = ieee80211_get_channel(wiphy, freq);
-	if (!chan)
-		goto exit;
+    cfreq = rtw_ch2freq(cfreq);
+    if (!cfreq) goto exit;
 
-	if (bw == CHANNEL_WIDTH_20) 
-		chdef->width = ht ? NL80211_CHAN_WIDTH_20 : NL80211_CHAN_WIDTH_20_NOHT;
-	else if (bw == CHANNEL_WIDTH_40)
-		chdef->width = NL80211_CHAN_WIDTH_40;
-	else if (bw == CHANNEL_WIDTH_80)
-		chdef->width = NL80211_CHAN_WIDTH_80;
-	else if (bw == CHANNEL_WIDTH_160)
-		chdef->width = NL80211_CHAN_WIDTH_160;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
-	else if (bw == CHANNEL_WIDTH_5)
-		chdef->width = NL80211_CHAN_WIDTH_5;
-	else if (bw == CHANNEL_WIDTH_10)
-		chdef->width = NL80211_CHAN_WIDTH_10;
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)) */
-	else {
-		rtw_warn_on(1);
-		goto exit;
-	}
+    chan = ieee80211_get_channel(wiphy, freq);
+    if (!chan) goto exit;
 
-	chdef->chan = chan;
-	chdef->center_freq1 = cfreq;
+    // Map internal bandwidth to cfg80211 channel width
+    switch (bw) {
+        case CHANNEL_WIDTH_20:
+            chdef->width = ht ? NL80211_CHAN_WIDTH_20 : NL80211_CHAN_WIDTH_20_NOHT;
+            break;
+        case CHANNEL_WIDTH_40:
+            chdef->width = NL80211_CHAN_WIDTH_40;
+            break;
+        case CHANNEL_WIDTH_80:
+            chdef->width = NL80211_CHAN_WIDTH_80;
+            break;
+        case CHANNEL_WIDTH_160:
+            chdef->width = NL80211_CHAN_WIDTH_160;
+            break;
+        case CHANNEL_WIDTH_5:
+            chdef->width = NL80211_CHAN_WIDTH_5;
+            break;
+        case CHANNEL_WIDTH_10:
+            chdef->width = NL80211_CHAN_WIDTH_10;
+            break;
+        default:
+            rtw_warn_on(1);
+            goto exit;
+    }
 
-	ret = _SUCCESS;
+    chdef->chan = chan;
+    chdef->center_freq1 = cfreq;
+    ret = _SUCCESS;
 
 exit:
-	return ret;
+    return ret;
 }
 
-const char *nl80211_chan_width_str(enum nl80211_chan_width cwidth)
+const char *nl80211_chan_width_str(enum nl80211_chan_width cwidth) 
 {
-	switch (cwidth) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-		return "20_NOHT";
-	case NL80211_CHAN_WIDTH_20:
-		return "20";
-	case NL80211_CHAN_WIDTH_40:
-		return "40";
-	case NL80211_CHAN_WIDTH_80:
-		return "80";
-	case NL80211_CHAN_WIDTH_80P80:
-		return "80+80";
-	case NL80211_CHAN_WIDTH_160:
-		return "160";
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
-	case NL80211_CHAN_WIDTH_5:
-		return "5";
-	case NL80211_CHAN_WIDTH_10:
-		return "10";
-#endif
-	default:
-		return "INVALID";
-	};
+    switch (cwidth) {
+        case NL80211_CHAN_WIDTH_20_NOHT: return "20_NOHT";
+        case NL80211_CHAN_WIDTH_20: return "20";
+        case NL80211_CHAN_WIDTH_40: return "40";
+        case NL80211_CHAN_WIDTH_80: return "80";
+        case NL80211_CHAN_WIDTH_80P80: return "80+80";
+        case NL80211_CHAN_WIDTH_160: return "160";
+        case NL80211_CHAN_WIDTH_5: return "5";
+        case NL80211_CHAN_WIDTH_10: return "10";
+        default: return "INVALID";
+    }
 }
 
-void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef, u8 *ht, u8 *ch, u8 *bw, u8 *offset)
+void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef, 
+                                         u8 *ht, u8 *ch, u8 *bw, u8 *offset) 
 {
-	int pri_freq;
-	struct ieee80211_channel *chan = chdef->chan;
+    struct ieee80211_channel *chan = chdef->chan;
+    int pri_freq = rtw_ch2freq(chan->hw_value);
 
-	pri_freq = rtw_ch2freq(chan->hw_value);
-	if (!pri_freq) {
-		RTW_INFO("invalid channel:%d\n", chan->hw_value);
-		rtw_warn_on(1);
-		*ch = 0;
-		return;
-	}		
+    if (!pri_freq) {
+        RTW_INFO("Invalid channel: %d\n", chan->hw_value);
+        rtw_warn_on(1);
+        *ch = 0;
+        return;
+    }
 
-	switch (chdef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-		*ht = 0;
-		*bw = CHANNEL_WIDTH_20;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_20:
-		*ht = 1;
-		*bw = CHANNEL_WIDTH_20;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_40:
-		*ht = 1;
-		*bw = CHANNEL_WIDTH_40;
-		*offset = pri_freq > chdef->center_freq1 ? HAL_PRIME_CHNL_OFFSET_UPPER : HAL_PRIME_CHNL_OFFSET_LOWER;
-		if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset))
-			*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_80:
-		*ht = 1;
-		*bw = CHANNEL_WIDTH_80;
-		if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset))
-			*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_160:
-		*ht = 1;
-		*bw = CHANNEL_WIDTH_160;
-		if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset))
-			*ch = chan->hw_value;
-		break;
-	case NL80211_CHAN_WIDTH_80P80:
-	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
-	case NL80211_CHAN_WIDTH_5:
-	case NL80211_CHAN_WIDTH_10:
-	#endif
-	default:
-		*ht = 0;
-		*bw = CHANNEL_WIDTH_20;
-		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		RTW_INFO("unsupported cwidth:%s\n", nl80211_chan_width_str(chdef->width));
-		rtw_warn_on(1);
-	};
+    // Map cfg80211 width to internal values
+    switch (chdef->width) {
+        case NL80211_CHAN_WIDTH_20_NOHT:
+            *ht = 0;
+            *bw = CHANNEL_WIDTH_20;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            *ch = chan->hw_value;
+            break;
+        case NL80211_CHAN_WIDTH_20:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_20;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            *ch = chan->hw_value;
+            break;
+        case NL80211_CHAN_WIDTH_40:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_40;
+            *offset = (pri_freq > chdef->center_freq1) 
+                      ? HAL_PRIME_CHNL_OFFSET_UPPER 
+                      : HAL_PRIME_CHNL_OFFSET_LOWER;
+            if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset)) {
+                *ch = chan->hw_value;
+            }
+            break;
+        case NL80211_CHAN_WIDTH_80:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_80;
+            if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset)) {
+                *ch = chan->hw_value;
+            }
+            break;
+        case NL80211_CHAN_WIDTH_160:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_160;
+            if (rtw_get_offset_by_chbw(chan->hw_value, *bw, offset)) {
+                *ch = chan->hw_value;
+            }
+            break;
+        case NL80211_CHAN_WIDTH_80P80:
+            *ht = 1;
+            *bw = CHANNEL_WIDTH_80_80;
+            break;
+        case NL80211_CHAN_WIDTH_5:
+            *ht = 0;
+            *bw = CHANNEL_WIDTH_5;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            break;
+        case NL80211_CHAN_WIDTH_10:
+            *ht = 0;
+            *bw = CHANNEL_WIDTH_10;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            break;
+        default:
+            *ht = 0;
+            *bw = CHANNEL_WIDTH_20;
+            *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+            RTW_INFO("Unsupported cwidth: %s\n", nl80211_chan_width_str(chdef->width));
+            rtw_warn_on(1);
+            break;
+    }
+
+    RTW_INFO("Configured channel: %d, BW: %u, Offset: %u, HT: %u\n", 
+             *ch, *bw, *offset, *ht);
 }
 
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
-static const char *nl80211_channel_type_str(enum nl80211_channel_type ctype)
-{
-	switch (ctype) {
-	case NL80211_CHAN_NO_HT:
-		return "NO_HT";
-	case NL80211_CHAN_HT20:
-		return "HT20";
-	case NL80211_CHAN_HT40MINUS:
-		return "HT40-";
-	case NL80211_CHAN_HT40PLUS:
-		return "HT40+";
-	default:
-		return "INVALID";
-	};
-}
 
 static enum nl80211_channel_type rtw_chbw_to_nl80211_channel_type(u8 ch, u8 bw, u8 offset, u8 ht)
 {
