@@ -7307,9 +7307,6 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 {
 	_adapter *padapter = wiphy_to_adapter(wiphy);
 	u8 target_channel, target_offset, target_width, ht_option;
-	struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
-    struct wireless_dev *wdev = padapter->rtw_wdev;
-
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #ifdef CONFIG_DEBUG_CFG80211
@@ -7321,12 +7318,6 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 		, chandef->center_freq2);
 #endif /* CONFIG_DEBUG_CFG80211 */
 
-	
-	// Update internal state
-    mlmeext->cur_channel = target_channel;
-    mlmeext->cur_bwmode = target_width;
-    mlmeext->cur_ch_offset = target_offset;
-
 	rtw_get_chbwoff_from_cfg80211_chan_def(chandef,
 		&ht_option, &target_channel, &target_width, &target_offset);
 #else
@@ -7336,11 +7327,6 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 		, chan->hw_value
 		, channel_type);
 #endif /* CONFIG_DEBUG_CFG80211 */
-	
-	// Update internal state
-    mlmeext->cur_channel = target_channel;
-    mlmeext->cur_bwmode = target_width;
-    mlmeext->cur_ch_offset = target_offset;
 
 	rtw_get_chbw_from_nl80211_channel_type(chan, channel_type,
 		&ht_option, &target_channel, &target_width, &target_offset);
