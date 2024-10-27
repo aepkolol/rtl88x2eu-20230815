@@ -6990,8 +6990,8 @@ static int cfg80211_rtw_get_channel(struct wiphy *wiphy,
 {
     _adapter *padapter = wiphy_to_adapter(wiphy);
     struct mlme_ext_priv *mlmeext = &(padapter->mlmeextpriv);
-    u8 ht_option = 0;
-    u8 report = 0;
+    u8 ht_option = 1;
+    u8 report = 1;
     int retval = 1;
 
     pr_info("cfg80211: Checking current channel configuration.\n");
