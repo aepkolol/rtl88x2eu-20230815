@@ -985,96 +985,108 @@ static void switch_chnl_and_set_bw_by_fw(PADAPTER adapter, u8 switch_band)
  * Description:
  *	Set channel & bandwidth & offset
  */
-void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter)
-{
-	PHAL_DATA_TYPE hal = GET_HAL_DATA(adapter);
-	struct dm_struct *p_dm_odm = &hal->odmpriv;
-	u8 center_ch = 0, ret = 0, switch_band = _FALSE;
+void rtl8822e_switch_chnl_and_set_bw(PADAPTER adapter) {
+    PHAL_DATA_TYPE hal = GET_HAL_DATA(adapter);
+    struct dm_struct *p_dm_odm = &hal->odmpriv;
+    u8 center_ch = 0, ret = 0, switch_band = _FALSE;
 
-	if (adapter->bNotifyChannelChange) {
-		RTW_INFO("[%s] bSwChnl=%d, ch=%d, bSetChnlBW=%d, bw=%d\n",
-			 __FUNCTION__,
-			 hal->bSwChnl,
-			 hal->current_channel,
-			 hal->bSetChnlBW,
-			 hal->current_channel_bw);
-	}
+    // Log the initial state
+    RTW_INFO("[%s] Entering channel switch function\n", __FUNCTION__);
+    RTW_INFO("Current channel: %d, Current BW: %d\n", 
+             hal->current_channel, hal->current_channel_bw);
 
-	if (RTW_CANNOT_RUN(adapter)) {
-		hal->bSwChnlAndSetBWInProgress = _FALSE;
-		return;
-	}
+    if (adapter->bNotifyChannelChange) {
+        RTW_INFO("[%s] Channel change notification - SwChnl: %d, SetChnlBW: %d\n",
+                 __FUNCTION__, hal->bSwChnl, hal->bSetChnlBW);
+    }
 
-	switch_band = need_switch_band(adapter, hal->current_channel);
+    // Check if adapter can perform operations
+    if (RTW_CANNOT_RUN(adapter)) {
+        RTW_WARN("Cannot perform channel switch. Adapter state invalid.\n");
+        hal->bSwChnlAndSetBWInProgress = _FALSE;
+        return;
+    }
 
-	/* config channel, bw, offset setting */
+    // Determine if a band switch is required
+    switch_band = need_switch_band(adapter, hal->current_channel);
+    RTW_INFO("Need to switch band: %d (0:No, 1:Yes)\n", switch_band);
+
+    // Log channel and bandwidth before switching
+    RTW_INFO("Switching to channel %d, BW %d, Offset %d\n", 
+             hal->current_channel, hal->current_channel_bw, hal->current_chnl_offset);
+
+    // Perform the channel switch using driver or firmware
 #ifdef RTW_CHANNEL_SWITCH_OFFLOAD
-	if (hal->ch_switch_offload) {
+    if (hal->ch_switch_offload) {
+#ifdef RTW_REDUCE_SCAN_SWITCH_CH_TIME
+        struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+        _adapter *iface;
+        struct mlme_ext_priv *mlmeext;
+        u8 drv_switch = _TRUE;
+        int i;
 
-	#ifdef RTW_REDUCE_SCAN_SWITCH_CH_TIME
-		struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
-		_adapter *iface;
-		struct mlme_ext_priv *mlmeext;
-		u8 drv_switch = _TRUE;
-		int i;
+        // Check if any scan is in progress
+        for (i = 0; i < dvobj->iface_nums; i++) {
+            iface = dvobj->padapters[i];
+            mlmeext = &iface->mlmeextpriv;
 
-		for (i = 0; i < dvobj->iface_nums; i++) {
-			iface = dvobj->padapters[i];
-			mlmeext = &iface->mlmeextpriv;
-
-			/* check scan state */
-			if (mlmeext_scan_state(mlmeext) != SCAN_DISABLE
-				&& mlmeext_scan_state(mlmeext) != SCAN_COMPLETE
-					&& mlmeext_scan_state(mlmeext) != SCAN_BACKING_OP)
-				drv_switch = _FALSE;
-		}
-		if (drv_switch == _TRUE)
-			switch_chnl_and_set_bw_by_drv(adapter, switch_band);
-		else
-			switch_chnl_and_set_bw_by_fw(adapter, switch_band);
-	#else
-		switch_chnl_and_set_bw_by_fw(adapter, switch_band);
-	#endif
-	} else {
-		switch_chnl_and_set_bw_by_drv(adapter, switch_band);
-	}
+            if (mlmeext_scan_state(mlmeext) != SCAN_DISABLE &&
+                mlmeext_scan_state(mlmeext) != SCAN_COMPLETE &&
+                mlmeext_scan_state(mlmeext) != SCAN_BACKING_OP) {
+                drv_switch = _FALSE;
+                RTW_INFO("Scan in progress, using firmware switch.\n");
+            }
+        }
+        if (drv_switch == _TRUE)
+            switch_chnl_and_set_bw_by_drv(adapter, switch_band);
+        else
+            switch_chnl_and_set_bw_by_fw(adapter, switch_band);
 #else
-	switch_chnl_and_set_bw_by_drv(adapter, switch_band);
-#endif /* RTW_CHANNEL_SWITCH_OFFLOAD */
+        switch_chnl_and_set_bw_by_fw(adapter, switch_band);
+#endif
+    } else {
+        switch_chnl_and_set_bw_by_drv(adapter, switch_band);
+    }
+#else
+    switch_chnl_and_set_bw_by_drv(adapter, switch_band);
+#endif
 
+    // Log post-switch settings
+    RTW_INFO("Switched to channel %d, BW %d\n", 
+             hal->current_channel, hal->current_channel_bw);
 
-	/* config coex setting */
-	if (switch_band) {
+    // Bluetooth coexistence configuration
+    if (switch_band) {
 #ifdef CONFIG_BT_COEXIST
-		if (hal->EEPROMBluetoothCoexist) {
-			struct mlme_ext_priv *mlmeext;
+        if (hal->EEPROMBluetoothCoexist) {
+            struct mlme_ext_priv *mlmeext = &adapter->mlmeextpriv;
 
-			/* switch band under site survey or not, must notify to BT COEX */
-			mlmeext = &adapter->mlmeextpriv;
-			if (mlmeext_scan_state(mlmeext) != SCAN_DISABLE)
-				rtw_btcoex_switchband_notify(_TRUE, hal->current_band_type);
-			else
-				rtw_btcoex_switchband_notify(_FALSE, hal->current_band_type);
-		} else
-			rtw_btcoex_wifionly_switchband_notify(adapter);
-#else /* !CONFIG_BT_COEXIST */
-		rtw_btcoex_wifionly_switchband_notify(adapter);
-#endif /* CONFIG_BT_COEXIST */
-	}
+            if (mlmeext_scan_state(mlmeext) != SCAN_DISABLE)
+                rtw_btcoex_switchband_notify(_TRUE, hal->current_band_type);
+            else
+                rtw_btcoex_switchband_notify(_FALSE, hal->current_band_type);
+        } else {
+            rtw_btcoex_wifionly_switchband_notify(adapter);
+        }
+#else
+        rtw_btcoex_wifionly_switchband_notify(adapter);
+#endif
+    }
 
-	phydm_config_kfree(p_dm_odm, hal->current_channel);
+    // Configure power and perform calibration
+    phydm_config_kfree(p_dm_odm, hal->current_channel);
+    odm_clear_txpowertracking_state(p_dm_odm);
+    rtw_hal_set_tx_power_level(adapter, hal->current_channel);
 
-	/* TX Power Setting */
-	odm_clear_txpowertracking_state(p_dm_odm);
-	rtw_hal_set_tx_power_level(adapter, hal->current_channel);
+    // Log the need for IQ calibration
+    if (hal->bNeedIQK == _TRUE || adapter->registrypriv.mp_mode == 1) {
+        RTW_INFO("Performing IQ calibration.\n");
+        rtw_phydm_iqk_trigger(adapter);
+        hal->bNeedIQK = _FALSE;
+    }
 
-	/* IQK */
-	if ((hal->bNeedIQK == _TRUE)
-	    || (adapter->registrypriv.mp_mode == 1)) {
-		/*phy_iq_calibrate_8822e(p_dm_odm, _FALSE);*/
-		rtw_phydm_iqk_trigger(adapter);
-		hal->bNeedIQK = _FALSE;
-	}
+    // Final log
+    RTW_INFO("[%s] Completed channel switch.\n", __FUNCTION__);
 }
 
 /*
