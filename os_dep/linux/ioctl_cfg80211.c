@@ -16,6 +16,7 @@
 
 #include <drv_types.h>
 #include <hal_data.h>
+#include <linux/mutex.h>  // For mutex functions
 
 #define CONFIG_RTW_DEBUG true
 
@@ -4890,7 +4891,6 @@ static int cfg80211_rtw_get_txpower(struct wiphy *wiphy,
 
 	return 0;
 }
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)) */
 
 inline bool rtw_cfg80211_pwr_mgmt(_adapter *adapter)
 {
@@ -7306,7 +7306,10 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 	)
 {
 	_adapter *padapter = wiphy_to_adapter(wiphy);
-	u8 target_channal, target_offset, target_width, ht_option;
+	u8 target_channel, target_offset, target_width, ht_option;
+	struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
+    struct wireless_dev *wdev = padapter->rtw_wdev;
+
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #ifdef CONFIG_DEBUG_CFG80211
@@ -7318,8 +7321,15 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 		, chandef->center_freq2);
 #endif /* CONFIG_DEBUG_CFG80211 */
 
+	mutex_lock(&wdev->mtx);  // Lock mutex
+	
+	// Update internal state
+    mlmeext->cur_channel = target_channel;
+    mlmeext->cur_bwmode = target_bw;
+    mlmeext->cur_ch_offset = target_offset;
+
 	rtw_get_chbwoff_from_cfg80211_chan_def(chandef,
-		&ht_option, &target_channal, &target_width, &target_offset);
+		&ht_option, &target_channel, &target_width, &target_offset);
 #else
 #ifdef CONFIG_DEBUG_CFG80211
 	RTW_INFO("center_freq %u Mhz ch %u channel_type %u\n"
@@ -7327,16 +7337,21 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 		, chan->hw_value
 		, channel_type);
 #endif /* CONFIG_DEBUG_CFG80211 */
+	mutex_lock(&wdev->mtx);  // Lock mutex
+	
+	// Update internal state
+    mlmeext->cur_channel = target_channel;
+    mlmeext->cur_bwmode = target_bw;
+    mlmeext->cur_ch_offset = target_offset;
 
 	rtw_get_chbw_from_nl80211_channel_type(chan, channel_type,
-		&ht_option, &target_channal, &target_width, &target_offset);
+		&ht_option, &target_channel, &target_width, &target_offset);
 #endif
 	RTW_INFO(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d\n",
-		FUNC_ADPT_ARG(padapter), target_channal,
+		FUNC_ADPT_ARG(padapter), target_channel,
 		target_width, target_offset);
 
-	rtw_set_chbw_cmd(padapter, target_channal, target_width,
-		target_offset, RTW_CMDF_WAIT_ACK);
+	rtw_set_chbw_cmd(padapter, target_channel, target_width, target_offset, RTW_CMDF_WAIT_ACK);
 
 	return 0;
 }
@@ -11186,7 +11201,7 @@ int rtw_wiphy_register(struct wiphy *wiphy)
 
 	RTW_INFO(FUNC_WIPHY_FMT"\n", FUNC_WIPHY_ARG(wiphy));
 
-#if ( (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) \
+#if ( (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) 
      || defined(RTW_VENDOR_EXT_SUPPORT) )
 	rtw_cfgvendor_attach(wiphy);
 #endif
@@ -11212,7 +11227,7 @@ void rtw_wiphy_unregister(struct wiphy *wiphy)
 {
 	RTW_INFO(FUNC_WIPHY_FMT"\n", FUNC_WIPHY_ARG(wiphy));
 
-#if ( (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) \
+#if ( (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
      || defined(RTW_VENDOR_EXT_SUPPORT) )
 	rtw_cfgvendor_detach(wiphy);
 #endif
