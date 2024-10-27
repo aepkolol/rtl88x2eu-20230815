@@ -4891,6 +4891,7 @@ static int cfg80211_rtw_get_txpower(struct wiphy *wiphy,
 
 	return 0;
 }
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)) */
 
 inline bool rtw_cfg80211_pwr_mgmt(_adapter *adapter)
 {
@@ -7325,7 +7326,7 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 	
 	// Update internal state
     mlmeext->cur_channel = target_channel;
-    mlmeext->cur_bwmode = target_width;
+    mlmeext->cur_bwmode = target_bw;
     mlmeext->cur_ch_offset = target_offset;
 
 	rtw_get_chbwoff_from_cfg80211_chan_def(chandef,
@@ -7341,7 +7342,7 @@ static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
 	
 	// Update internal state
     mlmeext->cur_channel = target_channel;
-    mlmeext->cur_bwmode = target_width;
+    mlmeext->cur_bwmode = target_bw;
     mlmeext->cur_ch_offset = target_offset;
 
 	rtw_get_chbw_from_nl80211_channel_type(chan, channel_type,
