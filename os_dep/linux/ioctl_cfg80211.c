@@ -7036,7 +7036,7 @@ static int cfg80211_rtw_get_channel(struct wiphy *wiphy,
     return retval;
 }
 
-void rtw_get_chbw_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef, 
+void rtw_get_chbwoff_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef, 
                                          u8 *ht, u8 *ch, u8 *bw, u8 *offset) 
 {
     struct ieee80211_channel *chan = chdef->chan;
