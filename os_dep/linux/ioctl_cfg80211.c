@@ -7237,40 +7237,75 @@ static void rtw_get_chbwoff_from_cfg80211_chan_def(
     RTW_INFO("Channel set: %u, BW: %u, Offset: %u\n", *ch, *bw, *offset);
 }
 
-static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy, 
+static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy,
                                             struct cfg80211_chan_def *chandef)
 {
     _adapter *padapter = wiphy_to_adapter(wiphy);
+    struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv;
     struct wireless_dev *wdev = padapter->rtw_wdev;
-    u8 target_channel, target_offset, target_width, ht_option;
 
-    // Log the channel configuration for debugging
-    pr_info("cfg80211: Monitor Channel - center_freq: %u MHz, channel: %u, width: %u\n",
-            chandef->chan->center_freq, chandef->chan->hw_value, chandef->width);
-
-    // Acquire the mutex for thread-safe access
+    // Mutex lock to prevent concurrent access to shared state
     mutex_lock(&wdev->mtx);
 
-    // Extract channel parameters from the channel definition
-    rtw_get_chbwoff_from_cfg80211_chan_def(chandef, 
-                                           &ht_option, 
-                                           &target_channel, 
-                                           &target_width, 
-                                           &target_offset);
+    // Extract channel, bandwidth, and offset from the chandef struct
+    u8 target_channel = chandef->chan->hw_value;
+    u8 target_bw = CHANNEL_WIDTH_20;  // Default to 20 MHz
+    u8 target_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
-    // Log the final channel configuration
-    pr_info(FUNC_ADPT_FMT " ch: %d, bw: %d, offset: %d\n",
-            FUNC_ADPT_ARG(padapter), target_channel, target_width, target_offset);
+    RTW_INFO("Monitor Channel - center_freq: %u MHz, channel: %u, width: %u\n",
+             chandef->center_freq1, target_channel, chandef->width);
 
-    // Apply the channel setting
-    rtw_set_chbw_cmd(padapter, target_channel, target_width, 
-                     target_offset, RTW_CMDF_WAIT_ACK);
+    // Map cfg80211 width to internal bandwidth values
+    switch (chandef->width) {
+        case NL80211_CHAN_WIDTH_20_NOHT:
+            target_bw = CHANNEL_WIDTH_20;
+            break;
+        case NL80211_CHAN_WIDTH_20:
+            target_bw = CHANNEL_WIDTH_20;
+            break;
+        case NL80211_CHAN_WIDTH_40:
+            target_bw = CHANNEL_WIDTH_40;
+            target_offset = (chandef->center_freq1 > chandef->chan->center_freq) ?
+                            HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+            break;
+        case NL80211_CHAN_WIDTH_80:
+            target_bw = CHANNEL_WIDTH_80;
+            break;
+        case NL80211_CHAN_WIDTH_160:
+            target_bw = CHANNEL_WIDTH_160;
+            break;
+        case NL80211_CHAN_WIDTH_80P80:
+            target_bw = CHANNEL_WIDTH_80_80;
+            break;
+        default:
+            RTW_WARN("Unsupported channel width: %u\n", chandef->width);
+            target_bw = CHANNEL_WIDTH_20;  // Default to 20 MHz
+    }
 
-    // Release the mutex after the operation is complete
+    // Log the extracted values for debugging
+    RTW_INFO("Setting monitor mode - Channel: %u, BW: %u, Offset: %u\n",
+             target_channel, target_bw, target_offset);
+
+    // Update internal driver state with the new channel configuration
+    mlmeext->cur_channel = target_channel;
+    mlmeext->cur_bwmode = target_bw;
+    mlmeext->cur_ch_offset = target_offset;
+
+    // Apply the channel configuration
+    int ret = rtw_set_chbw_cmd(padapter, target_channel, target_bw, target_offset, RTW_CMDF_WAIT_ACK);
+
+    // Unlock the mutex after the operation
     mutex_unlock(&wdev->mtx);
 
+    if (ret) {
+        RTW_WARN("Failed to set channel %u with BW %u and offset %u\n", target_channel, target_bw, target_offset);
+        return ret;  // Return error code if channel setting fails
+    }
+
+    RTW_INFO("Successfully set monitor mode on channel %u\n", target_channel);
     return 0;
 }
+
 
 void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rframe)
 {
