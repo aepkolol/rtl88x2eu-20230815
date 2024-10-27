@@ -240,76 +240,6 @@ BAND_TYPE _nl80211_band_to_rtw_band[] = {
 
 static int rtw_cfg80211_set_assocresp_ies(struct net_device *net, const u8 *buf, int len);
 
-static u8 rtw_chbw_to_cfg80211_chan_def(struct wiphy *wiphy, 
-                                        struct cfg80211_chan_def *chdef, 
-                                        u8 ch, u8 bw, u8 offset, u8 ht)
-{
-    int freq, cfreq;
-    struct ieee80211_channel *chan;
-    u8 ret = _FAIL;
-
-    // Clear the chandef structure before populating it
-    _rtw_memset(chdef, 0, sizeof(*chdef));
-
-    freq = rtw_ch2freq(ch);  // Convert channel to frequency
-    if (!freq) {
-        RTW_WARN("Invalid channel: %d\n", ch);
-        goto exit;
-    }
-
-    cfreq = rtw_get_center_ch(ch, bw, offset);  // Calculate center frequency
-    if (!cfreq) {
-        RTW_WARN("Failed to get center frequency for channel %d\n", ch);
-        goto exit;
-    }
-    cfreq = rtw_ch2freq(cfreq);  // Convert center channel to frequency
-    if (!cfreq) {
-        RTW_WARN("Invalid center frequency\n");
-        goto exit;
-    }
-
-    chan = ieee80211_get_channel(wiphy, freq);  // Get the ieee80211_channel struct
-    if (!chan) {
-        RTW_WARN("Failed to get channel struct for freq %d\n", freq);
-        goto exit;
-    }
-
-    // Map internal bandwidth values to cfg80211 width
-    switch (bw) {
-        case CHANNEL_WIDTH_20:
-            chdef->width = ht ? NL80211_CHAN_WIDTH_20 : NL80211_CHAN_WIDTH_20_NOHT;
-            break;
-        case CHANNEL_WIDTH_40:
-            chdef->width = NL80211_CHAN_WIDTH_40;
-            break;
-        case CHANNEL_WIDTH_80:
-            chdef->width = NL80211_CHAN_WIDTH_80;
-            break;
-        case CHANNEL_WIDTH_160:
-            chdef->width = NL80211_CHAN_WIDTH_160;
-            break;
-        case CHANNEL_WIDTH_5:
-            chdef->width = NL80211_CHAN_WIDTH_5;
-            break;
-        case CHANNEL_WIDTH_10:
-            chdef->width = NL80211_CHAN_WIDTH_10;
-            break;
-        default:
-            RTW_WARN("Unsupported bandwidth: %u\n", bw);
-            goto exit;
-    }
-
-    // Populate chandef fields
-    chdef->chan = chan;
-    chdef->center_freq1 = cfreq;
-    RTW_INFO("Configured chandef - Channel: %u, Width: %s, Center Freq1: %u\n",
-             ch, nl80211_chan_width_str(chdef->width), cfreq);
-
-    ret = _SUCCESS;
-
-exit:
-    return ret;
-}
 
 bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
 {
@@ -326,17 +256,6 @@ bool rtw_cfg80211_allow_ch_switch_notify(_adapter *adapter)
 	pr_info("rtw_cfg80211: Channel switch not allowed.\n");
     return 1;
 }
-
-/*
-struct cfg80211_chan_def {
-	struct ieee80211_channel *chan;
-	enum nl80211_chan_width width;
-	u32 center_freq1;
-	u32 center_freq2;
-	struct ieee80211_edmg edmg;
-	u16 freq1_offset;
-};
-*/
 
 u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
                                  u8 ht, bool started)
