@@ -7124,31 +7124,62 @@ void rtw_get_chbwoff_from_cfg80211_chan_def(struct cfg80211_chan_def *chdef,
              *ch, *bw, *offset, *ht);
 }
 
-static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
-	, struct cfg80211_chan_def *chandef
-	)
-{
-	_adapter *padapter = wiphy_to_adapter(wiphy);
-	u8 target_channal, target_offset, target_width, ht_option;
+static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy, 
+                                            struct cfg80211_chan_def *chandef) {
+    _adapter *padapter = wiphy_to_adapter(wiphy);
+    u8 target_channel, target_offset, target_width, ht_option;
 
-	RTW_INFO("center_freq %u Mhz ch %u width %u freq1 %u freq2 %u\n"
-		, chandef->chan->center_freq
-		, chandef->chan->hw_value
-		, chandef->width
-		, chandef->center_freq1
-		, chandef->center_freq2);
-	rtw_get_chbwoff_from_cfg80211_chan_def(chandef,
-		&ht_option, &target_channal, &target_width, &target_offset);
+    // Log chandef input parameters
+    RTW_INFO("Entering cfg80211_rtw_set_monitor_channel\n");
+    RTW_INFO("chandef - Center Freq: %u MHz, Channel: %u, Width: %u, Freq1: %u MHz, Freq2: %u MHz\n",
+             chandef->chan->center_freq, chandef->chan->hw_value,
+             chandef->width, chandef->center_freq1, chandef->center_freq2);
 
-	RTW_INFO(FUNC_ADPT_FMT" ch:%d bw:%d, offset:%d\n",
-		FUNC_ADPT_ARG(padapter), target_channal,
-		target_width, target_offset);
+    // Extract channel parameters using helper function
+    rtw_get_chbwoff_from_cfg80211_chan_def(chandef, 
+                                           &ht_option, 
+                                           &target_channel, 
+                                           &target_width, 
+                                           &target_offset);
 
-	rtw_set_chbw_cmd(padapter, target_channal, target_width,
-		target_offset, RTW_CMDF_WAIT_ACK);
+    // Log the extracted parameters
+    RTW_INFO("Extracted Parameters - HT Option: %u, Channel: %u, Bandwidth: %u, Offset: %u\n",
+             ht_option, target_channel, target_width, target_offset);
 
-	return 0;
+    // Validate extracted parameters (optional)
+    if (target_channel == 0 || target_width > CHANNEL_WIDTH_160) {
+        RTW_WARN("Invalid extracted parameters - Channel: %u, Bandwidth: %u\n",
+                 target_channel, target_width);
+        return -EINVAL;
+    }
+
+    // Log driver state before applying configuration
+    RTW_INFO("Driver State Before Set - Current Channel: %u, Current BW: %u, Current Offset: %u\n",
+             padapter->mlmeextpriv.cur_channel, 
+             padapter->mlmeextpriv.cur_bwmode, 
+             padapter->mlmeextpriv.cur_ch_offset);
+
+    // Apply the new configuration
+    int ret = rtw_set_chbw_cmd(padapter, target_channel, target_width, target_offset, RTW_CMDF_WAIT_ACK);
+
+    // Check the result of the command
+    if (ret) {
+        RTW_WARN("Failed to set channel: %u, BW: %u, Offset: %u, Error: %d\n",
+                 target_channel, target_width, target_offset, ret);
+        return -EOPNOTSUPP;
+    }
+
+    // Log success and updated driver state
+    RTW_INFO("Successfully set monitor mode - Channel: %u, BW: %u, Offset: %u\n",
+             target_channel, target_width, target_offset);
+    RTW_INFO("Driver State After Set - Current Channel: %u, Current BW: %u, Current Offset: %u\n",
+             padapter->mlmeextpriv.cur_channel, 
+             padapter->mlmeextpriv.cur_bwmode, 
+             padapter->mlmeextpriv.cur_ch_offset);
+
+    return 0;
 }
+
 
 void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rframe)
 {
