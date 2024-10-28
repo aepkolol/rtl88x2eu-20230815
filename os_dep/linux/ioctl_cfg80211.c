@@ -7251,41 +7251,49 @@ static void rtw_get_chbwoff_from_cfg80211_chan_def(
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		*ht = 0;
-		fallthrough;
+		*bw = CHANNEL_WIDTH_20;
+		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		RTW_INFO("Detected 20 MHz NOHT mode\n");
+		break;
 	case NL80211_CHAN_WIDTH_20:
 		*bw = CHANNEL_WIDTH_20;
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		RTW_INFO("Setting 20 MHz width, HT: %u\n", *ht);
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		*bw = CHANNEL_WIDTH_40;
 		*offset = (chandef->center_freq1 > chan->center_freq) ?
 			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		RTW_INFO("Setting 40 MHz width, Offset: %u\n", *offset);
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		*bw = CHANNEL_WIDTH_80;
 		*offset = (chandef->center_freq1 > chan->center_freq) ?
 			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		RTW_INFO("Setting 80 MHz width\n");
 		break;
 	case NL80211_CHAN_WIDTH_160:
 		*bw = CHANNEL_WIDTH_160;
 		*offset = (chandef->center_freq1 > chan->center_freq) ?
 			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		RTW_INFO("Setting 160 MHz width\n");
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
 		*bw = CHANNEL_WIDTH_80_80;
 		*offset = (chandef->center_freq1 > chan->center_freq) ?
 			HAL_PRIME_CHNL_OFFSET_LOWER : HAL_PRIME_CHNL_OFFSET_UPPER;
+		RTW_INFO("Setting 80/80 MHz width\n");
 		break;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
 	case NL80211_CHAN_WIDTH_5:
 		*bw = CHANNEL_WIDTH_5;
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		RTW_INFO("Setting 5 MHz width\n");
 		break;
 	case NL80211_CHAN_WIDTH_10:
 		*bw = CHANNEL_WIDTH_10;
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+		RTW_INFO("Setting 10 MHz width\n");
 		break;
-#endif
 	default:
 		*ht = 0;
 		*bw = CHANNEL_WIDTH_20;
@@ -7293,7 +7301,11 @@ static void rtw_get_chbwoff_from_cfg80211_chan_def(
 		RTW_INFO("unsupported cwidth:%u\n", chandef->width);
 		rtw_warn_on(1);
 	};
+	// Log final extracted parameters
+    RTW_INFO("Extracted - Channel: %u, BW: %u, Offset: %u, HT: %u\n", 
+             *ch, *bw, *offset, *ht);
 }
+
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) */
 
 static int cfg80211_rtw_set_monitor_channel(struct wiphy *wiphy
