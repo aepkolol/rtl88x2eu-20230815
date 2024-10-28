@@ -1796,27 +1796,11 @@ exit:
 	return res;
 }
 
-// HT doesn't want to turn on in 20MHz mode so lets try this..
-void enforce_ht20(struct mlme_ext_priv *mlmeext) {
-    // Force the wireless mode to enable HT
-    mlmeext->cur_wireless_mode |= WIRELESS_HT;
-
-    // Force the bandwidth mode to 20MHz
-    mlmeext->cur_bwmode = CHANNEL_WIDTH_20;
-
-    // Reset any offsets to ensure proper channel alignment
-    mlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-
-    // Optional: Log enforcement
-    RTW_INFO("HT20 mode enforced: bw=%d, offset=%d\n", mlmeext->cur_bwmode, mlmeext->cur_ch_offset);
-}
-
 u8 rtw_set_chbw_cmd(_adapter *padapter, u8 ch, u8 bw, u8 ch_offset, u8 flags) {
     struct cmd_obj *pcmdobj;
     struct set_ch_parm *set_ch_parm;
     struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
     struct submit_ctx sctx;
-    struct mlme_ext_priv *mlmeext = &padapter->mlmeextpriv; // Access mlme_ext_priv directly
     u8 res = _SUCCESS;
 
     RTW_INFO(FUNC_NDEV_FMT " Attempting to set channel: %u, bw: %u, offset: %u\n",
@@ -1826,12 +1810,6 @@ u8 rtw_set_chbw_cmd(_adapter *padapter, u8 ch, u8 bw, u8 ch_offset, u8 flags) {
     if (ch < 1 || ch > 165 || bw > CHANNEL_WIDTH_80_80) {
         RTW_WARN("Invalid input: channel=%u, bw=%u\n", ch, bw);
         return _FAIL;
-    }
-
-    // Enforce HT20 mode if the bandwidth is 20MHz
-    if (bw == CHANNEL_WIDTH_20) {
-        RTW_INFO("Enforcing HT20 mode\n");
-        enforce_ht20(mlmeext);
     }
 
     // Allocate memory for command parameters
