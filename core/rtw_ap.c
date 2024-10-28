@@ -1314,9 +1314,9 @@ static void rtw_set_hw_wmm_param(_adapter *padapter)
 	    (pmlmeext->cur_wireless_mode & WIRELESS_11_24N)))
 		aSifsTime = 16;
 	else
-#endif /* CONFIG_80211N_HT */
+
 		aSifsTime = 10;
-		
+#endif /* CONFIG_80211N_HT */
 	if (pmlmeinfo->sifs_override_en == 1) {
 		aSifsTime = pmlmeinfo->sifs_override;
 		RTW_INFO("rtw_set_hw_wmm_param: sifs_override enabled, %d\n", aSifsTime);
