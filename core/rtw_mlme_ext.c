@@ -15734,9 +15734,6 @@ u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
              FUNC_NDEV_ARG(padapter->pnetdev),
              set_ch_parm->ch, set_ch_parm->bw, set_ch_parm->ch_offset);
 
-	// **Force HT20 Mode**
-    set_ch_parm->bw = CHANNEL_WIDTH_20;  // 20 MHz bandwidth
-
     /* Prevent the union logic from overriding settings */
     pmlmeext->cur_channel = set_ch_parm->ch;
     pmlmeext->cur_bwmode = set_ch_parm->bw;
