@@ -111,83 +111,71 @@ u8 rtw_mi_stayin_union_band_chk(_adapter *adapter)
 }
 
 /* Find union about ch, bw, ch_offset of all linked/linking interfaces */
-int rtw_mi_get_ch_setting_union_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, u8 *ch, u8 *bw, u8 *offset) 
+int rtw_mi_get_ch_setting_union_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, u8 *ch, u8 *bw, u8 *offset)
 {
-    _adapter *iface;
-    struct mlme_ext_priv *mlmeext;
-    int i;
-    u8 ch_ret = 0;
-    u8 bw_ret = CHANNEL_WIDTH_20;
-    u8 offset_ret = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-    int num = 0;
+	_adapter *iface;
+	struct mlme_ext_priv *mlmeext;
+	int i;
+	u8 ch_ret = 0;
+	u8 bw_ret = CHANNEL_WIDTH_20;
+	u8 offset_ret = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+	int num = 0;
 
-    if (ch) *ch = 0;
-    if (bw) *bw = CHANNEL_WIDTH_20;
-    if (offset) *offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+	if (ch)
+		*ch = 0;
+	if (bw)
+		*bw = CHANNEL_WIDTH_20;
+	if (offset)
+		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
-    RTW_INFO("Starting channel union process...\n");
+	for (i = 0; i < dvobj->iface_nums; i++) {
+		iface = dvobj->padapters[i];
+		if (!iface || !(ifbmp & BIT(iface->iface_id)))
+			continue;
 
-    for (i = 0; i < dvobj->iface_nums; i++) {
-        iface = dvobj->padapters[i];
-        if (!iface || !(ifbmp & BIT(iface->iface_id))) {
-            RTW_INFO("Skipping iface %d\n", i);
-            continue;
-        }
+		mlmeext = &iface->mlmeextpriv;
 
-        mlmeext = &iface->mlmeextpriv;
+		if (!check_fwstate(&iface->mlmepriv, WIFI_ASOC_STATE | WIFI_UNDER_LINKING))
+			continue;
 
-        if (!check_fwstate(&iface->mlmepriv, WIFI_ASOC_STATE | WIFI_UNDER_LINKING)) {
-            RTW_INFO("Interface %d not linked or associated\n", i);
-            continue;
-        }
+		if (check_fwstate(&iface->mlmepriv, WIFI_OP_CH_SWITCHING))
+			continue;
 
-        if (check_fwstate(&iface->mlmepriv, WIFI_OP_CH_SWITCHING)) {
-            RTW_INFO("Interface %d is switching channels\n", i);
-            continue;
-        }
+		if (num == 0) {
+			ch_ret = mlmeext->cur_channel;
+			bw_ret = mlmeext->cur_bwmode;
+			offset_ret = mlmeext->cur_ch_offset;
+			num++;
+			continue;
+		}
 
-        RTW_INFO("Interface %d - Current Channel: %u, BW: %u, Offset: %u\n",
-                 i, mlmeext->cur_channel, mlmeext->cur_bwmode, mlmeext->cur_ch_offset);
+		if (ch_ret != mlmeext->cur_channel) {
+			num = 0;
+			break;
+		}
 
-        if (num == 0) {
-            ch_ret = mlmeext->cur_channel;
-            bw_ret = mlmeext->cur_bwmode;
-            offset_ret = mlmeext->cur_ch_offset;
-            num++;
-            continue;
-        }
+		if (bw_ret < mlmeext->cur_bwmode) {
+			bw_ret = mlmeext->cur_bwmode;
+			offset_ret = mlmeext->cur_ch_offset;
+		} else if (bw_ret == mlmeext->cur_bwmode && offset_ret != mlmeext->cur_ch_offset) {
+			num = 0;
+			break;
+		}
 
-        if (ch_ret != mlmeext->cur_channel) {
-            RTW_WARN("Channel mismatch detected. Expected: %u, Found: %u\n", ch_ret, mlmeext->cur_channel);
-            num = 0;
-            break;
-        }
+		num++;
+	}
 
-        if (bw_ret < mlmeext->cur_bwmode) {
-            bw_ret = mlmeext->cur_bwmode;
-            offset_ret = mlmeext->cur_ch_offset;
-        } else if (bw_ret == mlmeext->cur_bwmode && offset_ret != mlmeext->cur_ch_offset) {
-            RTW_WARN("Offset mismatch detected. Expected: %u, Found: %u\n", offset_ret, mlmeext->cur_ch_offset);
-            num = 0;
-            break;
-        }
+	if (num) {
+		if (ch)
+			*ch = ch_ret;
+		if (bw)
+			*bw = bw_ret;
+		if (offset)
+			*offset = offset_ret;
+	}
 
-        num++;
-    }
-
-    if (num) {
-        if (ch) *ch = ch_ret;
-        if (bw) *bw = bw_ret;
-        if (offset) *offset = offset_ret;
-
-        RTW_INFO("Union result - Channel: %u, BW: %u, Offset: %u\n", ch_ret, bw_ret, offset_ret);
-    } else {
-        RTW_WARN("Failed to determine consistent union settings.\n");
-    }
-
-    return num;
+	return num;
 }
-
 
 inline int rtw_mi_get_ch_setting_union(_adapter *adapter, u8 *ch, u8 *bw, u8 *offset)
 {
