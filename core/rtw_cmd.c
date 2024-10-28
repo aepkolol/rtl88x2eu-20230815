@@ -1796,12 +1796,24 @@ exit:
 	return res;
 }
 
-u8 rtw_set_chbw_cmd(_adapter *padapter, u8 ch, u8 bw, u8 ch_offset, u8 flags)
-{
+// HT doesn't want to turn on in 20MHz mode so lets try this..
+void enforce_ht20(struct cmn_sta_info *sta_info) {
+    // Ensure HT is enabled
+    sta_info->support_wireless_set |= WIRELESS_HT;
+
+    // Force the bandwidth mode to 20MHz
+    sta_info->bw_mode = CHANNEL_WIDTH_20;
+
+    // Optional: Reset VHT settings if not needed
+    sta_info->support_wireless_set &= ~WIRELESS_VHT;
+}
+
+u8 rtw_set_chbw_cmd(_adapter *padapter, u8 ch, u8 bw, u8 ch_offset, u8 flags) {
     struct cmd_obj *pcmdobj;
     struct set_ch_parm *set_ch_parm;
     struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
     struct submit_ctx sctx;
+    struct cmn_sta_info *sta_info = &padapter->mlmeextpriv.mlmext_info.cmn_sta_info;
     u8 res = _SUCCESS;
 
     RTW_INFO(FUNC_NDEV_FMT " Attempting to set channel: %u, bw: %u, offset: %u\n",
@@ -1813,35 +1825,37 @@ u8 rtw_set_chbw_cmd(_adapter *padapter, u8 ch, u8 bw, u8 ch_offset, u8 flags)
         return _FAIL;
     }
 
-    RTW_INFO("Sanity check - ch: %u, bw: %u, offset: %u\n", ch, bw, ch_offset);
+    // Enforce HT20 only if bandwidth is 20MHz
+    if (bw == CHANNEL_WIDTH_20) {
+        RTW_INFO("Enforcing HT20 mode\n");
+        enforce_ht20(sta_info);
+    }
 
     // Allocate memory for command parameters
     set_ch_parm = (struct set_ch_parm *)rtw_zmalloc(sizeof(*set_ch_parm));
-    if (set_ch_parm == NULL) {
+    if (!set_ch_parm) {
         RTW_WARN("Memory allocation for set_ch_parm failed\n");
-        res = _FAIL;
-        goto exit;
+        return _FAIL;
     }
+
+    // Set parameters
     set_ch_parm->ch = ch;
     set_ch_parm->bw = bw;
     set_ch_parm->ch_offset = ch_offset;
 
-    // Force direct command for testing (optional)
+    // Execute directly or enqueue command
     if (flags & RTW_CMDF_DIRECTLY) {
         RTW_INFO("Executing rtw_set_chbw_hdl directly\n");
         if (H2C_SUCCESS != rtw_set_chbw_hdl(padapter, (u8 *)set_ch_parm)) {
-            RTW_WARN("rtw_set_chbw_hdl failed: channel=%u, bw=%u, offset=%u\n", ch, bw, ch_offset);
+            RTW_WARN("rtw_set_chbw_hdl failed\n");
             res = _FAIL;
         }
         rtw_mfree((u8 *)set_ch_parm, sizeof(*set_ch_parm));
     } else {
-        // Enqueue command for async processing
         pcmdobj = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
-        if (pcmdobj == NULL) {
-            RTW_WARN("Memory allocation for cmd_obj failed\n");
+        if (!pcmdobj) {
             rtw_mfree((u8 *)set_ch_parm, sizeof(*set_ch_parm));
-            res = _FAIL;
-            goto exit;
+            return _FAIL;
         }
 
         init_h2fwcmd_w_parm_no_rsp(pcmdobj, set_ch_parm, CMD_SET_CHANNEL);
@@ -1852,31 +1866,25 @@ u8 rtw_set_chbw_cmd(_adapter *padapter, u8 ch, u8 bw, u8 ch_offset, u8 flags)
         }
 
         res = rtw_enqueue_cmd(pcmdpriv, pcmdobj);
-        if (res != _SUCCESS) {
-            RTW_WARN("Command enqueue failed: channel=%u, bw=%u, offset=%u\n", ch, bw, ch_offset);
-            goto exit;
-        }
-
-        if (flags & RTW_CMDF_WAIT_ACK) {
-            RTW_INFO("Waiting for ACK on channel=%u, bw=%u, offset=%u\n", ch, bw, ch_offset);
+        if (res == _SUCCESS && (flags & RTW_CMDF_WAIT_ACK)) {
+            RTW_INFO("Waiting for ACK on channel=%u\n", ch);
             rtw_sctx_wait(&sctx, __func__);
 
             _enter_critical_mutex(&pcmdpriv->sctx_mutex, NULL);
             if (sctx.status == RTW_SCTX_SUBMITTED) {
-                RTW_WARN("Command timeout: channel=%u, bw=%u, offset=%u\n", ch, bw, ch_offset);
+                RTW_WARN("Command timeout\n");
                 pcmdobj->sctx = NULL;
             }
             _exit_critical_mutex(&pcmdpriv->sctx_mutex, NULL);
         }
     }
 
-exit:
+    // Log the command result
     const char *status_str = (res == _SUCCESS) ? "SUCCESS" : "FAILURE";
     RTW_INFO("Command %s (Channel: %u, BW: %u, Offset: %u)\n", status_str, ch, bw, ch_offset);
+
     return res;
 }
-
-
 
 #ifdef CONFIG_RTW_LED_HANDLED_BY_CMD_THREAD
 u8 rtw_led_blink_cmd(_adapter *padapter, void *pLed)
