@@ -15720,68 +15720,43 @@ u8 rtw_iqk_hdl(_adapter *padapter, unsigned char *pbuf)
 
 u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
 {
-    /* Variable declarations at the top */
     struct set_ch_parm *set_ch_parm;
     struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
     u8 u_ch, u_bw, u_offset;
     struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
-    u8 ifbmp_s = rtw_mi_get_ld_sta_ifbmp(padapter);
-    int i;  /* Moved loop variable to the top */
-    _adapter *iface;  /* Declaring iface here */
-    struct mlme_ext_priv *mlmeext;  /* Declaring mlmeext here */
 
     if (!pbuf)
         return H2C_PARAMETERS_ERROR;
 
     set_ch_parm = (struct set_ch_parm *)pbuf;
 
-    RTW_INFO(FUNC_NDEV_FMT" Received ch:%u, bw:%u, offset:%u\n",
-             FUNC_NDEV_ARG(padapter->pnetdev), set_ch_parm->ch, set_ch_parm->bw, set_ch_parm->ch_offset);
+    RTW_INFO(FUNC_NDEV_FMT " Received ch:%u, bw:%u, offset:%u\n",
+             FUNC_NDEV_ARG(padapter->pnetdev),
+             set_ch_parm->ch, set_ch_parm->bw, set_ch_parm->ch_offset);
 
-    /* Update channel, bw, and offset for all associated STA interfaces */
-    if (ifbmp_s) {
-        for (i = 0; i < dvobj->iface_nums; i++) {
-            iface = dvobj->padapters[i];
-            if (!iface || !(ifbmp_s & BIT(iface->iface_id)))
-                continue;
+    /* Prevent the union logic from overriding settings */
+    pmlmeext->cur_channel = set_ch_parm->ch;
+    pmlmeext->cur_bwmode = set_ch_parm->bw;
+    pmlmeext->cur_ch_offset = set_ch_parm->ch_offset;
 
-            mlmeext = &iface->mlmeextpriv;
-
-            RTW_INFO("Updating iface %d - Previous Channel: %u, BW: %u, Offset: %u\n",
-                     i, mlmeext->cur_channel, mlmeext->cur_bwmode, mlmeext->cur_ch_offset);
-
-            mlmeext->cur_channel = set_ch_parm->ch;
-            mlmeext->cur_bwmode = set_ch_parm->bw;
-            mlmeext->cur_ch_offset = set_ch_parm->ch_offset;
-
-            iface->mlmepriv.cur_network.network.Configuration.DSConfig = set_ch_parm->ch;
-        }
-    }
-
-    LeaveAllPowerSaveModeDirect(padapter);
-
-    /* Call set_channel_bwmode with the new settings */
     RTW_INFO("Calling set_channel_bwmode with ch:%u, offset:%u, bw:%u\n",
              set_ch_parm->ch, set_ch_parm->ch_offset, set_ch_parm->bw);
     set_channel_bwmode(padapter, set_ch_parm->ch, set_ch_parm->ch_offset, set_ch_parm->bw);
 
-    /* Get the union of all interfaces */
+    /* Re-sync interface channel information after setting */
     rtw_mi_get_ch_setting_union(padapter, &u_ch, &u_bw, &u_offset);
-    RTW_INFO("Union settings - u_ch:%u, u_bw:%u, u_offset:%u\n", u_ch, u_bw, u_offset);
+    RTW_INFO("Updated union settings - u_ch:%u, u_bw:%u, u_offset:%u\n", u_ch, u_bw, u_offset);
 
-    /* Force synchronization */
-    pmlmeext->cur_channel = u_ch;
-    pmlmeext->cur_bwmode = u_bw;
-    pmlmeext->cur_ch_offset = u_offset;
-
-    RTW_INFO("Forced sync - ch:%u, bw:%u, offset:%u\n",
-             pmlmeext->cur_channel, pmlmeext->cur_bwmode, pmlmeext->cur_ch_offset);
+    if (u_ch != set_ch_parm->ch) {
+        RTW_WARN("Union mismatch! Setting channel again to %u\n", set_ch_parm->ch);
+        pmlmeext->cur_channel = set_ch_parm->ch;
+        set_channel_bwmode(padapter, set_ch_parm->ch, set_ch_parm->ch_offset, set_ch_parm->bw);
+    }
 
     rtw_rfctl_update_op_mode(dvobj_to_rfctl(dvobj), 0, 0);
 
     return H2C_SUCCESS;
 }
-
 
 u8 led_blink_hdl(_adapter *padapter, unsigned char *pbuf)
 {
