@@ -15731,13 +15731,15 @@ u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
 
     set_ch_parm = (struct set_ch_parm *)pbuf;
 
-    // Log the received parameters
     RTW_INFO(FUNC_NDEV_FMT" Received ch:%u, bw:%u, offset:%u\n",
              FUNC_NDEV_ARG(padapter->pnetdev), set_ch_parm->ch, set_ch_parm->bw, set_ch_parm->ch_offset);
 
+    /* Declare loop variable outside of the for loop for compatibility */
+    int i;
+
     /* Update channel, bw, and offset for all associated STA interfaces */
     if (ifbmp_s) {
-        for (int i = 0; i < dvobj->iface_nums; i++) {
+        for (i = 0; i < dvobj->iface_nums; i++) {
             _adapter *iface = dvobj->padapters[i];
             if (!iface || !(ifbmp_s & BIT(iface->iface_id)))
                 continue;
