@@ -15725,6 +15725,7 @@ u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
     u8 ifbmp_s = rtw_mi_get_ld_sta_ifbmp(padapter);
     struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
     u8 u_ch, u_bw, u_offset;
+    int i;  // Declare the loop variable here
 
     if (!pbuf) {
         RTW_WARN("rtw_set_chbw_hdl: Invalid buffer pointer\n");
@@ -15741,7 +15742,7 @@ u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
     // Apply settings to all associated interfaces
     if (ifbmp_s) {
         _adapter *iface;
-        for (int i = 0; i < dvobj->iface_nums; i++) {
+        for (i = 0; i < dvobj->iface_nums; i++) {
             iface = dvobj->padapters[i];
             if (!iface || !(ifbmp_s & BIT(iface->iface_id)))
                 continue;
@@ -15780,6 +15781,7 @@ u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
 
     return H2C_SUCCESS;
 }
+
 
 u8 led_blink_hdl(_adapter *padapter, unsigned char *pbuf)
 {
