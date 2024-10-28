@@ -15782,6 +15782,22 @@ u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
     return H2C_SUCCESS;
 }
 
+
+u8 led_blink_hdl(_adapter *padapter, unsigned char *pbuf)
+{
+#ifdef CONFIG_RTW_LED_HANDLED_BY_CMD_THREAD
+	struct LedBlink_param *ledBlink_param;
+
+	if (!pbuf)
+		return H2C_PARAMETERS_ERROR;
+
+	ledBlink_param = (struct LedBlink_param *)pbuf;
+	BlinkHandler((PLED_DATA)ledBlink_param->pLed);
+#endif
+
+	return	H2C_SUCCESS;
+}
+
 void csa_timer_hdl(void *FunctionContext)
 {
 	_adapter *padapter = (_adapter *)FunctionContext;
