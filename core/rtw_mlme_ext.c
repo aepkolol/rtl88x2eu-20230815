@@ -15720,11 +15720,15 @@ u8 rtw_iqk_hdl(_adapter *padapter, unsigned char *pbuf)
 
 u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
 {
+    /* Variable declarations at the top */
     struct set_ch_parm *set_ch_parm;
     struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
     u8 u_ch, u_bw, u_offset;
     struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
     u8 ifbmp_s = rtw_mi_get_ld_sta_ifbmp(padapter);
+    int i;  /* Moved loop variable to the top */
+    _adapter *iface;  /* Declaring iface here */
+    struct mlme_ext_priv *mlmeext;  /* Declaring mlmeext here */
 
     if (!pbuf)
         return H2C_PARAMETERS_ERROR;
@@ -15734,17 +15738,15 @@ u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
     RTW_INFO(FUNC_NDEV_FMT" Received ch:%u, bw:%u, offset:%u\n",
              FUNC_NDEV_ARG(padapter->pnetdev), set_ch_parm->ch, set_ch_parm->bw, set_ch_parm->ch_offset);
 
-    /* Declare loop variable outside of the for loop for compatibility */
-    int i;
-
     /* Update channel, bw, and offset for all associated STA interfaces */
     if (ifbmp_s) {
         for (i = 0; i < dvobj->iface_nums; i++) {
-            _adapter *iface = dvobj->padapters[i];
+            iface = dvobj->padapters[i];
             if (!iface || !(ifbmp_s & BIT(iface->iface_id)))
                 continue;
 
-            struct mlme_ext_priv *mlmeext = &iface->mlmeextpriv;
+            mlmeext = &iface->mlmeextpriv;
+
             RTW_INFO("Updating iface %d - Previous Channel: %u, BW: %u, Offset: %u\n",
                      i, mlmeext->cur_channel, mlmeext->cur_bwmode, mlmeext->cur_ch_offset);
 
@@ -15778,21 +15780,6 @@ u8 rtw_set_chbw_hdl(_adapter *padapter, u8 *pbuf)
     rtw_rfctl_update_op_mode(dvobj_to_rfctl(dvobj), 0, 0);
 
     return H2C_SUCCESS;
-}
-
-u8 led_blink_hdl(_adapter *padapter, unsigned char *pbuf)
-{
-#ifdef CONFIG_RTW_LED_HANDLED_BY_CMD_THREAD
-	struct LedBlink_param *ledBlink_param;
-
-	if (!pbuf)
-		return H2C_PARAMETERS_ERROR;
-
-	ledBlink_param = (struct LedBlink_param *)pbuf;
-	BlinkHandler((PLED_DATA)ledBlink_param->pLed);
-#endif
-
-	return	H2C_SUCCESS;
 }
 
 void csa_timer_hdl(void *FunctionContext)
